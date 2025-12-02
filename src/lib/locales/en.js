@@ -715,8 +715,9 @@ export const strings = {
       unexpected: 'Unexpected error',
     },
     warning: {
-      editorial_workflow_unsupported: 'Editorial workflow is not yet supported in Sveltia CMS.',
       open_authoring_unsupported: 'Open authoring is not yet supported in Sveltia CMS.',
+      editorial_workflow_github_only:
+        'Editorial workflow is currently only fully supported with GitHub backend.',
       nested_collections_unsupported: 'Nested collections are not yet supported in Sveltia CMS.',
       unsupported_ignored_option:
         'The `{prop}` option is not supported in Sveltia CMS. It will be ignored.',
@@ -737,6 +738,12 @@ export const strings = {
     in_review: 'In Review',
     ready: 'Ready',
   },
+  request_review: 'Request Review',
+  approve: 'Approve',
+  request_changes: 'Request Changes',
+  back_to_review: 'Back to Review',
+  confirm_publish: 'Publish "{title}"?',
+  confirm_delete_draft: 'Delete draft "{title}"?',
 
   // Settings
   categories: 'Categories',
