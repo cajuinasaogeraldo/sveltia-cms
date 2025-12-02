@@ -29,6 +29,7 @@ import {
   WORKFLOW_STATUS,
   workflowEntriesLoaded,
 } from '$lib/services/contents/workflow';
+import { clearPreviewState } from '$lib/services/contents/workflow/preview';
 
 /**
  * @import { FileChange, UnpublishedEntry, WorkflowStatus } from '$lib/types/private';
@@ -104,6 +105,7 @@ export const loadUnpublishedEntries = async () => {
           prNumber: pr.number,
           prUrl: pr.url,
           branch: pr.headBranch,
+          headSha: pr.headSha,
           updatedAt: pr.updatedAt,
           author: pr.author,
         });
@@ -126,7 +128,7 @@ export const loadUnpublishedEntries = async () => {
  * Commit changes to a specific branch.
  * @param {string} branchName Branch name.
  * @param {FileChange[]} changes File changes.
- * @returns {Promise<void>}
+ * @returns {Promise<string | undefined>} Commit SHA if available.
  */
 const commitToBranch = async (branchName, changes) => {
   // Temporarily switch repository branch context
@@ -135,7 +137,9 @@ const commitToBranch = async (branchName, changes) => {
   try {
     Object.assign(repository, { branch: branchName });
 
-    await githubCommitChanges(changes, { commitType: 'create' });
+    const result = await githubCommitChanges(changes, { commitType: 'create' });
+
+    return result?.sha;
   } finally {
     // Restore original branch
     Object.assign(repository, { branch: originalBranch });
@@ -172,12 +176,15 @@ export const persistUnpublishedEntry = async ({
 
     try {
       // Commit changes to existing branch
-      await commitToBranch(branchName, changes);
+      const commitSha = await commitToBranch(branchName, changes);
 
+      // Clear preview state from localStorage since content changed
+      clearPreviewState(collection, slug);
       updateUnpublishedEntry(collection, slug, {
         isPersisting: false,
         data,
         title,
+        headSha: commitSha,
         updatedAt: new Date(),
       });
 
@@ -195,8 +202,7 @@ export const persistUnpublishedEntry = async ({
     await createBranch(branchName, baseBranch);
 
     // Commit changes to the new branch
-    await commitToBranch(branchName, changes);
-
+    const commitSha = await commitToBranch(branchName, changes);
     // Create PR
     const statusLabel = getStatusLabel(status);
 
@@ -218,6 +224,7 @@ export const persistUnpublishedEntry = async ({
       prNumber: pr.number,
       prUrl: pr.url,
       branch: branchName,
+      headSha: commitSha,
       updatedAt: new Date(),
     };
 

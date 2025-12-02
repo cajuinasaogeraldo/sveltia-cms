@@ -1270,9 +1270,11 @@
  * `false`.
  * @property {string} [preview_context] Deploy preview link context.
  * @property {string} [preview_url] Custom URL pattern for entry preview with Editorial Workflow.
- * Supported placeholders: `{{branch}}`, `{{collection}}`, `{{slug}}`, `{{pr_number}}`,
+ * Supported placeholders: `{{branch}}` (raw branch name), `{{branch_safe}}` (URL-safe branch name
+ * with special characters replaced by hyphens), `{{collection}}`, `{{slug}}`, `{{pr_number}}`,
  * `{{timestamp}}`, `{{title}}`. When configured, a `sveltia-cms-preview` repository dispatch event
- * is triggered to build the preview via your GitHub Actions workflow.
+ * is triggered to build the preview via your GitHub Actions workflow. The workflow run status is
+ * tracked automatically via polling.
  * @property {boolean} [open_authoring] Whether to use Open Authoring. Default: `false`.
  * @property {'repo' | 'public_repo'} [auth_scope] Authentication scope for Open Authoring.
  * @see https://decapcms.org/docs/github-backend/

@@ -18,7 +18,12 @@
     publishEntry,
     updateEntryStatus,
   } from '$lib/services/contents/workflow/actions';
-  import { buildPreview, isPreviewEnabled } from '$lib/services/contents/workflow/preview';
+  import {
+    buildPreview,
+    isPreviewEnabled,
+    isPreviewOutdated,
+    restorePreviewState,
+  } from '$lib/services/contents/workflow/preview';
 
   /**
    * @import { UnpublishedEntry, WorkflowStatus } from '$lib/types/private';
@@ -26,6 +31,18 @@
 
   onMount(() => {
     loadUnpublishedEntries();
+  });
+
+  // Restore preview states when entries load
+  $effect(() => {
+    const allEntries = [...$pendingReviewEntries, ...$pendingPublishEntries];
+
+    allEntries.forEach((entry) => {
+      // Only restore if the entry doesn't have a current preview status
+      if (!entry.previewStatus || entry.previewStatus === 'idle') {
+        restorePreviewState(entry.collection, entry.slug);
+      }
+    });
   });
 
   /**
@@ -127,15 +144,34 @@
       return $_('building_preview', { default: 'Building...' });
     }
 
-    if (entry.previewStatus === 'ready' && entry.previewUrl) {
+    const outdated = isPreviewOutdated(entry.collection, entry.slug);
+
+    if (entry.previewStatus === 'ready' && entry.previewUrl && !outdated) {
       return $_('view_preview', { default: 'View Preview' });
     }
 
     if (entry.previewStatus === 'error') {
-      return $_('preview_error', { default: 'Preview Failed' });
+      return $_('retry_preview', { default: 'Retry Preview' });
+    }
+
+    if (outdated) {
+      return $_('rebuild_preview', { default: 'Rebuild Preview' });
     }
 
     return $_('build_preview', { default: 'Build Preview' });
+  };
+
+  /**
+   * Check if preview can be viewed (ready and not outdated).
+   * @param {UnpublishedEntry} entry Entry.
+   * @returns {boolean} Whether preview can be viewed.
+   */
+  const canViewPreview = (entry) => {
+    if (!entry.previewUrl || entry.previewStatus !== 'ready') {
+      return false;
+    }
+
+    return !isPreviewOutdated(entry.collection, entry.slug);
   };
 </script>
 
@@ -216,7 +252,7 @@
                     onclick={() => handleStatusChange(entry, WORKFLOW_STATUS.DRAFT)}
                   />
                   {#if isPreviewEnabled()}
-                    {#if entry.previewStatus === 'ready' && entry.previewUrl}
+                    {#if canViewPreview(entry)}
                       <Button
                         variant="tertiary"
                         size="small"

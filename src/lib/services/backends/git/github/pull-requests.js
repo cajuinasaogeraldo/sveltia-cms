@@ -84,6 +84,7 @@ const LIST_PULL_REQUESTS_QUERY = `
           state
           url
           headRefName
+          headRefOid
           baseRefName
           createdAt
           updatedAt
@@ -137,6 +138,7 @@ export const listPullRequests = async ({ states = ['OPEN'] } = {}) => {
       state: pr.state.toLowerCase(),
       url: pr.url,
       headBranch: pr.headRefName,
+      headSha: pr.headRefOid,
       baseBranch: pr.baseRefName,
       labels: pr.labels.nodes.map((/** @type {{ name: string }} */ label) => label.name),
       createdAt: new Date(pr.createdAt),
