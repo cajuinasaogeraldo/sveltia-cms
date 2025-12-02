@@ -1,5 +1,4 @@
 import { get } from 'svelte/store';
-import { _ } from 'svelte-i18n';
 
 import { backend } from '$lib/services/backends';
 import { commitChanges as githubCommitChanges } from '$lib/services/backends/git/github/commits';
@@ -17,6 +16,7 @@ import {
   updatePRStatus,
 } from '$lib/services/backends/git/github/pull-requests';
 import { repository } from '$lib/services/backends/git/github/repository';
+import { createWorkflowMessage } from '$lib/services/backends/git/shared/commits';
 import { cmsConfig } from '$lib/services/config';
 import {
   addUnpublishedEntry,
@@ -205,10 +205,12 @@ export const persistUnpublishedEntry = async ({
     const commitSha = await commitToBranch(branchName, changes);
     // Create PR
     const statusLabel = getStatusLabel(status);
+    const prTitle = createWorkflowMessage('workflowPrTitle', { collection, slug, title });
+    const prBody = createWorkflowMessage('workflowPrBody', { collection, slug, title });
 
     const pr = await createPullRequest({
-      title: `${get(_)('editorial_workflow')}: ${title}`,
-      body: `Creating new entry: ${collection}/${slug}`,
+      title: prTitle,
+      body: prBody,
       head: branchName,
       base: baseBranch,
       labels: [statusLabel],
@@ -294,9 +296,13 @@ export const publishEntry = async (collection, slug) => {
   updateUnpublishedEntry(collection, slug, { isPublishing: true });
 
   try {
-    await mergePullRequest(entry.prNumber, {
-      commitTitle: `Publish: ${entry.title ?? slug}`,
+    const commitTitle = createWorkflowMessage('workflowPublish', {
+      collection,
+      slug,
+      title: entry.title,
     });
+
+    await mergePullRequest(entry.prNumber, { commitTitle });
 
     // Delete the branch after merging
     if (entry.branch) {

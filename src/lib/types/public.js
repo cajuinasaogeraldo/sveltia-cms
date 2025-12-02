@@ -1221,6 +1221,15 @@
  * @property {string} [uploadMedia] Message to be used when new files are uploaded/updated.
  * @property {string} [deleteMedia] Message to be used when existing files are deleted.
  * @property {string} [openAuthoring] Message to be used when committed via a forked repository.
+ * @property {string} [workflowPublish] Message for the merge commit when publishing via Editorial
+ * Workflow. Placeholders: `{{slug}}`, `{{collection}}`, `{{title}}`, `{{author-login}}`,
+ * `{{author-name}}`, `{{author-email}}`. Default: `Publish {{collection}} "{{slug}}"`.
+ * @property {string} [workflowPrTitle] Title for pull requests created by Editorial Workflow.
+ * Placeholders: `{{slug}}`, `{{collection}}`, `{{title}}`, `{{author-login}}`, `{{author-name}}`,
+ * `{{author-email}}`. Default: `Editorial Workflow: {{title}}`.
+ * @property {string} [workflowPrBody] Body for pull requests created by Editorial Workflow.
+ * Placeholders: `{{slug}}`, `{{collection}}`, `{{title}}`, `{{author-login}}`, `{{author-name}}`,
+ * `{{author-email}}`. Default: `Creating entry: {{collection}}/{{slug}}`.
  * @see https://decapcms.org/docs/configuration-options/#commit-message-templates
  */
 
