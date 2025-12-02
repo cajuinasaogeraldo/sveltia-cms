@@ -37,6 +37,9 @@ vi.mock('$lib/services/config', () => ({
 }));
 
 vi.mock('$lib/services/contents/collection', () => ({
+  getCollection: vi.fn((name) =>
+    name ? { name, label: 'Blog Post', label_singular: 'Blog Post' } : undefined,
+  ),
   getCollectionLabel: vi.fn(() => 'Blog Post'),
 }));
 

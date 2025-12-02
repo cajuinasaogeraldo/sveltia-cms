@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 
 import { cmsConfig } from '$lib/services/config';
-import { getCollectionLabel } from '$lib/services/contents/collection';
+import { getCollection, getCollectionLabel } from '$lib/services/contents/collection';
 import { user } from '$lib/services/user';
 
 /**
@@ -41,7 +41,12 @@ export const createWorkflowMessage = (messageType, { collection, slug, title }) 
   );
 
   const { email = '', login = '', name = '' } = /** @type {User} */ (get(user)) ?? {};
-  const collectionLabel = collection ? getCollectionLabel(collection, { useSingular: true }) : '';
+  const collectionObj = collection ? getCollection(collection) : undefined;
+
+  const collectionLabel = collectionObj
+    ? getCollectionLabel(collectionObj, { useSingular: true })
+    : '';
+
   // @ts-ignore
   let message = customCommitMessages[messageType] || DEFAULT_COMMIT_MESSAGES[messageType] || '';
 
