@@ -34,7 +34,7 @@ export const sendRequest = async (
     init.headers.set('Accept', 'application/json');
   }
 
-  if (init.method === 'POST' && isObject(init.body)) {
+  if (['POST', 'PUT', 'PATCH'].includes(init.method ?? '') && isObject(init.body)) {
     init.headers.set('Content-Type', 'application/json');
     init.body = JSON.stringify(init.body);
   }
