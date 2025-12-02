@@ -330,7 +330,7 @@ export const mergePullRequest = async (prNumber, { mergeMethod = 'squash', commi
     config?.backend
   );
 
-  const useSquash = backend?.squash_merges !== false;
+  const useSquash = backend?.squash_merges === true;
 
   const result = /** @type {{ sha: string }} */ (
     await fetchAPI(`/repos/${owner}/${repo}/pulls/${prNumber}/merge`, {

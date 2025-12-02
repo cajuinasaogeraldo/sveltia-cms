@@ -744,6 +744,10 @@ export const strings = {
   back_to_review: 'Back to Review',
   confirm_publish: 'Publish "{title}"?',
   confirm_delete_draft: 'Delete draft "{title}"?',
+  build_preview: 'Build Preview',
+  building_preview: 'Building...',
+  view_preview: 'View Preview',
+  preview_error: 'Preview Failed',
 
   // Settings
   categories: 'Categories',

@@ -18,6 +18,7 @@
     publishEntry,
     updateEntryStatus,
   } from '$lib/services/contents/workflow/actions';
+  import { buildPreview, isPreviewEnabled } from '$lib/services/contents/workflow/preview';
 
   /**
    * @import { UnpublishedEntry, WorkflowStatus } from '$lib/types/private';
@@ -84,6 +85,29 @@
   };
 
   /**
+   * Handle build preview.
+   * @param {UnpublishedEntry} entry Entry.
+   */
+  const handleBuildPreview = async (entry) => {
+    try {
+      await buildPreview(entry.collection, entry.slug);
+    } catch (/** @type {any} */ error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to build preview:', error);
+    }
+  };
+
+  /**
+   * Open preview URL in new tab.
+   * @param {UnpublishedEntry} entry Entry.
+   */
+  const openPreview = (entry) => {
+    if (entry.previewUrl) {
+      globalThis.open(entry.previewUrl, '_blank');
+    }
+  };
+
+  /**
    * Navigate to edit entry.
    * @param {UnpublishedEntry} entry Entry.
    */
@@ -91,6 +115,27 @@
     goto(`/collections/${entry.collection}/entries/${entry.slug}`, {
       transitionType: 'forwards',
     });
+  };
+
+  /**
+   * Get preview button label.
+   * @param {UnpublishedEntry} entry Entry.
+   * @returns {string} Button label.
+   */
+  const getPreviewButtonLabel = (entry) => {
+    if (entry.isBuildingPreview) {
+      return $_('building_preview', { default: 'Building...' });
+    }
+
+    if (entry.previewStatus === 'ready' && entry.previewUrl) {
+      return $_('view_preview', { default: 'View Preview' });
+    }
+
+    if (entry.previewStatus === 'error') {
+      return $_('preview_error', { default: 'Preview Failed' });
+    }
+
+    return $_('build_preview', { default: 'Build Preview' });
   };
 </script>
 
@@ -148,7 +193,9 @@
           </header>
           <div role="none" class="entries">
             {#each $pendingReviewEntries as entry (entry.slug)}
-              <article class="entry-card" class:busy={entry.isUpdatingStatus || entry.isDeleting}>
+              {@const isBusy =
+                entry.isUpdatingStatus || entry.isDeleting || entry.isBuildingPreview}
+              <article class="entry-card" class:busy={isBusy}>
                 <button type="button" class="entry-header" onclick={() => editEntry(entry)}>
                   <span class="title">{entry.title ?? entry.slug}</span>
                   <span class="collection">{entry.collection}</span>
@@ -168,6 +215,28 @@
                     disabled={entry.isUpdatingStatus}
                     onclick={() => handleStatusChange(entry, WORKFLOW_STATUS.DRAFT)}
                   />
+                  {#if isPreviewEnabled()}
+                    {#if entry.previewStatus === 'ready' && entry.previewUrl}
+                      <Button
+                        variant="tertiary"
+                        size="small"
+                        label={getPreviewButtonLabel(entry)}
+                        onclick={() => openPreview(entry)}
+                      >
+                        <Icon slot="start-icon" name="open_in_new" />
+                      </Button>
+                    {:else}
+                      <Button
+                        variant="tertiary"
+                        size="small"
+                        label={getPreviewButtonLabel(entry)}
+                        disabled={entry.isBuildingPreview}
+                        onclick={() => handleBuildPreview(entry)}
+                      >
+                        <Icon slot="start-icon" name="visibility" />
+                      </Button>
+                    {/if}
+                  {/if}
                   <Spacer flex />
                   <Button
                     variant="tertiary"

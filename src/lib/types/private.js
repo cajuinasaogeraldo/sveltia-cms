@@ -1117,6 +1117,11 @@
  */
 
 /**
+ * Preview status for editorial workflow entries.
+ * @typedef {'idle' | 'building' | 'ready' | 'error'} PreviewStatus
+ */
+
+/**
  * Unpublished entry for editorial workflow.
  * @typedef {object} UnpublishedEntry
  * @property {string} slug Entry slug.
@@ -1132,6 +1137,9 @@
  * @property {boolean} [isUpdatingStatus] Whether the status is being updated.
  * @property {boolean} [isPublishing] Whether the entry is being published.
  * @property {boolean} [isDeleting] Whether the entry is being deleted.
+ * @property {PreviewStatus} [previewStatus] Current preview build status.
+ * @property {string} [previewUrl] URL to view the preview.
+ * @property {boolean} [isBuildingPreview] Whether preview is being built.
  * @property {Date} [updatedAt] Last update time.
  * @property {string} [author] Author of the entry.
  */

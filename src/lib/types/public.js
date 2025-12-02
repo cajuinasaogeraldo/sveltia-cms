@@ -1266,9 +1266,13 @@
  * @property {string} [app_id] OAuth application ID. Required when using PKCE authorization.
  * @property {string} [cms_label_prefix] Pull request label prefix for Editorial Workflow. Default:
  * `sveltia-cms/`.
- * @property {boolean} [squash_merges] Whether to use squash marge for Editorial Workflow. Default:
+ * @property {boolean} [squash_merges] Whether to use squash merge for Editorial Workflow. Default:
  * `false`.
  * @property {string} [preview_context] Deploy preview link context.
+ * @property {string} [preview_url] Custom URL pattern for entry preview with Editorial Workflow.
+ * Supported placeholders: `{{branch}}`, `{{collection}}`, `{{slug}}`, `{{pr_number}}`,
+ * `{{timestamp}}`, `{{title}}`. When configured, a `sveltia-cms-preview` repository dispatch event
+ * is triggered to build the preview via your GitHub Actions workflow.
  * @property {boolean} [open_authoring] Whether to use Open Authoring. Default: `false`.
  * @property {'repo' | 'public_repo'} [auth_scope] Authentication scope for Open Authoring.
  * @see https://decapcms.org/docs/github-backend/
