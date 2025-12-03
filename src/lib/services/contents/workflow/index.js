@@ -197,3 +197,39 @@ export const clearWorkflowEditContext = () => {
   currentWorkflowBranch.set(null);
   currentWorkflowEntry.set(null);
 };
+
+/**
+ * Generate a GitHub raw URL for an asset in a workflow branch.
+ * @param {string} assetPath Asset path (e.g., /src/assets/images/photo.jpg).
+ * @param {object} repoInfo Repository information.
+ * @param {string} repoInfo.owner Repository owner.
+ * @param {string} repoInfo.repo Repository name.
+ * @returns {string | null} GitHub raw URL or null if not in workflow mode.
+ */
+export const getWorkflowAssetURL = (assetPath, repoInfo) => {
+  const workflowBranch = get(currentWorkflowBranch);
+
+  if (!workflowBranch) {
+    return null;
+  }
+
+  const { owner, repo } = repoInfo;
+
+  if (!owner || !repo) {
+    return null;
+  }
+
+  // Remove leading slash if present
+  const cleanPath = assetPath.startsWith('/') ? assetPath.slice(1) : assetPath;
+
+  // Encode the path properly for URL, preserving UTF-8 characters
+  const encodedPath = cleanPath
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+
+  // Encode the branch name
+  const encodedBranch = encodeURIComponent(workflowBranch);
+
+  return `https://raw.githubusercontent.com/${owner}/${repo}/${encodedBranch}/${encodedPath}`;
+};
