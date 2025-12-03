@@ -21,12 +21,6 @@
   import EditSlugDialog from '$lib/components/contents/details/edit-slug-dialog.svelte';
   import { goBack, goto } from '$lib/services/app/navigation';
   import { getAssetFolder } from '$lib/services/assets/folders';
-  import { isWorkflowEnabled } from '$lib/services/contents/workflow/actions';
-  import {
-    clearWorkflowEditContext,
-    currentWorkflowBranch,
-    currentWorkflowEntry,
-  } from '$lib/services/contents/workflow';
   import { skipCIConfigured, skipCIEnabled } from '$lib/services/backends/git/shared/integration';
   import { getCollectionLabel } from '$lib/services/contents/collection';
   import { deleteEntries } from '$lib/services/contents/collection/data/delete';
@@ -44,6 +38,12 @@
   import { getEntrySummary } from '$lib/services/contents/entry/summary';
   import { getLocaleLabel } from '$lib/services/contents/i18n';
   import { DEFAULT_I18N_CONFIG } from '$lib/services/contents/i18n/config';
+  import {
+    clearWorkflowEditContext,
+    currentWorkflowBranch,
+    currentWorkflowEntry,
+  } from '$lib/services/contents/workflow';
+  import { isWorkflowEnabled } from '$lib/services/contents/workflow/actions';
   import { isMediumScreen, isSmallScreen } from '$lib/services/user/env';
   import { prefs } from '$lib/services/user/prefs';
 

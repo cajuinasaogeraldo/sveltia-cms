@@ -137,6 +137,14 @@
    * @param {UnpublishedEntry} entry Entry.
    */
   const editEntry = (entry) => {
+    // Block editing for Ready status
+    if (entry.status === WORKFLOW_STATUS.PENDING_PUBLISH) {
+      // eslint-disable-next-line no-alert
+      alert($_('cannot_edit_ready_entry', { default: 'Cannot edit entries in Ready status' }));
+
+      return;
+    }
+
     // Set workflow context before navigation
     setWorkflowEditContext(entry);
 
@@ -222,6 +230,7 @@
     }
 
     const entry = draggedEntry;
+
     draggedEntry = null;
     dragOverStatus = null;
 

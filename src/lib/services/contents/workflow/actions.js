@@ -111,7 +111,10 @@ export const loadUnpublishedEntries = async () => {
         });
       })
       .filter(
-        /** @type {(e: UnpublishedEntry | null) => e is UnpublishedEntry} */
+        /**
+         * Filter out null entries.
+         * @type {(e: UnpublishedEntry | null) => e is UnpublishedEntry}
+         */
         ((e) => e !== null),
       );
 
@@ -125,12 +128,12 @@ export const loadUnpublishedEntries = async () => {
 };
 
 /**
- * Commit changes to a specific branch.
+ * Commit changes to a specific branch by temporarily switching the repository branch context.
  * @param {string} branchName Branch name.
  * @param {FileChange[]} changes File changes.
  * @returns {Promise<string | undefined>} Commit SHA if available.
  */
-const commitToBranch = async (branchName, changes) => {
+export const commitToBranch = async (branchName, changes) => {
   // Temporarily switch repository branch context
   const originalBranch = repository.branch;
 

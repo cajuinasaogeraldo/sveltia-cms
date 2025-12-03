@@ -15,7 +15,13 @@ import { getSlugs } from '$lib/services/contents/draft/slugs';
 import { validateEntry } from '$lib/services/contents/draft/validate';
 import { expandInvalidFields } from '$lib/services/contents/editor/expanders';
 import { getEntrySummary } from '$lib/services/contents/entry/summary';
-import { persistUnpublishedEntry } from '$lib/services/contents/workflow/actions';
+import {
+  currentWorkflowBranch,
+  currentWorkflowEntry,
+  updateUnpublishedEntry,
+} from '$lib/services/contents/workflow';
+import { commitToBranch, persistUnpublishedEntry } from '$lib/services/contents/workflow/actions';
+import { clearPreviewState } from '$lib/services/contents/workflow/preview';
 
 /**
  * @import { ChangeResults, Entry, EntryDraft } from '$lib/types/private';
@@ -70,8 +76,46 @@ export const saveEntry = async ({ skipCI = undefined } = {}) => {
   const slugs = getSlugs({ draft });
   const { defaultLocaleSlug } = slugs;
   const { savingEntry, changes, savingAssets } = await createSavingEntryData({ draft, slugs });
+  // Check if we're editing an existing workflow entry
+  const workflowBranch = get(currentWorkflowBranch);
+  const workflowEntry = get(currentWorkflowEntry);
 
-  // Check if editorial workflow is enabled
+  if (workflowBranch && workflowEntry && !isNew) {
+    // Editing existing workflow entry - commit to PR branch
+    try {
+      updateUnpublishedEntry(collectionName, workflowEntry.slug, { isPersisting: true });
+
+      const commitSha = await commitToBranch(workflowBranch, changes);
+
+      // Clear preview state since content changed
+      clearPreviewState(collectionName, workflowEntry.slug);
+
+      // Get entry title for update
+      const title = getEntrySummary(collection, savingEntry) ?? defaultLocaleSlug;
+      const { content: data = {} } = savingEntry.locales[Object.keys(savingEntry.locales)[0]] ?? {};
+
+      updateUnpublishedEntry(collectionName, workflowEntry.slug, {
+        isPersisting: false,
+        data,
+        title,
+        headSha: commitSha,
+        updatedAt: new Date(),
+      });
+
+      updateStores({ skipCI, isWorkflow: true });
+      deleteBackup(collectionName, defaultLocaleSlug);
+
+      return savingEntry;
+    } catch (/** @type {any} */ ex) {
+      updateUnpublishedEntry(collectionName, workflowEntry.slug, { isPersisting: false });
+      // eslint-disable-next-line no-console
+      console.error(ex.cause ?? ex);
+
+      throw new Error('saving_failed', { cause: ex.cause ?? ex });
+    }
+  }
+
+  // Check if editorial workflow is enabled (for new entries)
   if (isEditorialWorkflowEnabled() && get(backend)?.isGit) {
     try {
       // Get entry title for the PR
