@@ -9,7 +9,6 @@
     draftEntries,
     pendingPublishEntries,
     pendingReviewEntries,
-    setWorkflowEditContext,
     WORKFLOW_STATUS,
     workflowLoading,
   } from '$lib/services/contents/workflow';
@@ -133,7 +132,7 @@
   };
 
   /**
-   * Navigate to edit entry.
+   * Navigate to edit entry using dedicated workflow editor.
    * @param {UnpublishedEntry} entry Entry.
    */
   const editEntry = (entry) => {
@@ -145,10 +144,11 @@
       return;
     }
 
-    // Set workflow context before navigation
-    setWorkflowEditContext(entry);
+    // Navigate to dedicated workflow editor page with context in URL
+    const encodedCollection = encodeURIComponent(entry.collection);
+    const encodedSlug = encodeURIComponent(entry.slug);
 
-    goto(`/collections/${entry.collection}/entries/${entry.slug}`, {
+    goto(`/workflow/edit/${encodedCollection}/${encodedSlug}`, {
       transitionType: 'forwards',
     });
   };
