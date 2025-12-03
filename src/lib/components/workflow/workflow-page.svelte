@@ -1,5 +1,5 @@
 <script>
-  import { Button, Group, Icon, Spacer } from '@sveltia/ui';
+  import { Alert, Button, Group, Icon, Spacer, Toast } from '@sveltia/ui';
   import { onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
 
@@ -28,6 +28,13 @@
   /**
    * @import { UnpublishedEntry, WorkflowStatus } from '$lib/types/private';
    */
+
+  /** @type {UnpublishedEntry | null} */
+  let draggedEntry = $state(null);
+  /** @type {WorkflowStatus | null} */
+  let dragOverStatus = $state(null);
+  let showErrorToast = $state(false);
+  let errorMessage = $state('');
 
   onMount(() => {
     loadUnpublishedEntries();
@@ -173,6 +180,63 @@
 
     return !isPreviewOutdated(entry.collection, entry.slug);
   };
+
+  /**
+   * Handle drag start.
+   * @param {UnpublishedEntry} entry Entry being dragged.
+   */
+  const handleDragStart = (entry) => {
+    draggedEntry = entry;
+  };
+
+  /**
+   * Handle drag over column.
+   * @param {DragEvent} event Drag event.
+   * @param {WorkflowStatus} status Target status.
+   */
+  const handleDragOver = (event, status) => {
+    event.preventDefault();
+    dragOverStatus = status;
+  };
+
+  /**
+   * Handle drag leave column.
+   */
+  const handleDragLeave = () => {
+    dragOverStatus = null;
+  };
+
+  /**
+   * Handle drop on column.
+   * @param {WorkflowStatus} targetStatus Target status.
+   */
+  const handleDrop = async (targetStatus) => {
+    if (!draggedEntry || draggedEntry.status === targetStatus) {
+      draggedEntry = null;
+      dragOverStatus = null;
+      return;
+    }
+
+    const entry = draggedEntry;
+    draggedEntry = null;
+    dragOverStatus = null;
+
+    try {
+      await handleStatusChange(entry, targetStatus);
+    } catch (/** @type {any} */ error) {
+      errorMessage =
+        error.message || $_('status_change_failed', { default: 'Failed to change status' });
+      showErrorToast = true;
+    }
+  };
+
+  /**
+   * Handle drag end.
+   */
+  const handleDragEnd = () => {
+    draggedEntry = null;
+    dragOverStatus = null;
+  };
 </script>
 
 <PageContainer aria-label={$_('editorial_workflow')}>
@@ -188,9 +252,23 @@
             <h3 role="none" id="draft-column-title">{$_('status.drafts')}</h3>
             <span class="count">{$draftEntries.length}</span>
           </header>
-          <div role="none" class="entries">
+          <div
+            role="none"
+            class="entries"
+            class:drag-over={dragOverStatus === WORKFLOW_STATUS.DRAFT}
+            ondragover={(e) => handleDragOver(e, WORKFLOW_STATUS.DRAFT)}
+            ondragleave={handleDragLeave}
+            ondrop={() => handleDrop(WORKFLOW_STATUS.DRAFT)}
+          >
             {#each $draftEntries as entry (entry.slug)}
-              <article class="entry-card" class:busy={entry.isUpdatingStatus || entry.isDeleting}>
+              <article
+                class="entry-card"
+                class:busy={entry.isUpdatingStatus || entry.isDeleting}
+                class:dragging={draggedEntry?.slug === entry.slug}
+                draggable={!entry.isUpdatingStatus && !entry.isDeleting}
+                ondragstart={() => handleDragStart(entry)}
+                ondragend={handleDragEnd}
+              >
                 <button type="button" class="entry-header" onclick={() => editEntry(entry)}>
                   <span class="title">{entry.title ?? entry.slug}</span>
                   <span class="collection">{entry.collection}</span>
@@ -227,11 +305,25 @@
             <h3 role="none" id="review-column-title">{$_('status.in_review')}</h3>
             <span class="count">{$pendingReviewEntries.length}</span>
           </header>
-          <div role="none" class="entries">
+          <div
+            role="none"
+            class="entries"
+            class:drag-over={dragOverStatus === WORKFLOW_STATUS.PENDING_REVIEW}
+            ondragover={(e) => handleDragOver(e, WORKFLOW_STATUS.PENDING_REVIEW)}
+            ondragleave={handleDragLeave}
+            ondrop={() => handleDrop(WORKFLOW_STATUS.PENDING_REVIEW)}
+          >
             {#each $pendingReviewEntries as entry (entry.slug)}
               {@const isBusy =
                 entry.isUpdatingStatus || entry.isDeleting || entry.isBuildingPreview}
-              <article class="entry-card" class:busy={isBusy}>
+              <article
+                class="entry-card"
+                class:busy={isBusy}
+                class:dragging={draggedEntry?.slug === entry.slug}
+                draggable={!isBusy}
+                ondragstart={() => handleDragStart(entry)}
+                ondragend={handleDragEnd}
+              >
                 <button type="button" class="entry-header" onclick={() => editEntry(entry)}>
                   <span class="title">{entry.title ?? entry.slug}</span>
                   <span class="collection">{entry.collection}</span>
@@ -297,10 +389,24 @@
             <h3 role="none" id="ready-column-title">{$_('status.ready')}</h3>
             <span class="count">{$pendingPublishEntries.length}</span>
           </header>
-          <div role="none" class="entries">
+          <div
+            role="none"
+            class="entries"
+            class:drag-over={dragOverStatus === WORKFLOW_STATUS.PENDING_PUBLISH}
+            ondragover={(e) => handleDragOver(e, WORKFLOW_STATUS.PENDING_PUBLISH)}
+            ondragleave={handleDragLeave}
+            ondrop={() => handleDrop(WORKFLOW_STATUS.PENDING_PUBLISH)}
+          >
             {#each $pendingPublishEntries as entry (entry.slug)}
               {@const isBusy = entry.isUpdatingStatus || entry.isPublishing || entry.isDeleting}
-              <article class="entry-card" class:busy={isBusy}>
+              <article
+                class="entry-card"
+                class:busy={isBusy}
+                class:dragging={draggedEntry?.slug === entry.slug}
+                draggable={!isBusy}
+                ondragstart={() => handleDragStart(entry)}
+                ondragend={handleDragEnd}
+              >
                 <button type="button" class="entry-header" onclick={() => editEntry(entry)}>
                   <span class="title">{entry.title ?? entry.slug}</span>
                   <span class="collection">{entry.collection}</span>
@@ -344,6 +450,12 @@
     {/if}
   {/snippet}
 </PageContainer>
+
+<Toast bind:show={showErrorToast}>
+  <Alert status="error">
+    {errorMessage}
+  </Alert>
+</Toast>
 
 <style lang="scss">
   .loading {
@@ -413,6 +525,16 @@
     flex: auto;
     overflow-y: auto;
     padding: 8px;
+    min-height: 100px;
+    transition:
+      background-color 0.2s,
+      border 0.2s;
+
+    &.drag-over {
+      background-color: var(--sui-hover-background-color);
+      border: 2px dashed var(--sui-primary-accent-color);
+      border-radius: 8px;
+    }
   }
 
   .entry-card {
@@ -420,15 +542,31 @@
     border: 1px solid var(--sui-secondary-border-color);
     border-radius: 8px;
     background-color: var(--sui-primary-background-color);
-    transition: opacity 0.2s;
+    transition:
+      opacity 0.2s,
+      transform 0.2s,
+      box-shadow 0.2s;
+    cursor: move;
 
     &.busy {
       opacity: 0.6;
       pointer-events: none;
+      cursor: default;
     }
 
-    &:hover {
+    &.dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+      cursor: grabbing;
+    }
+
+    &:not(.busy):not(.dragging):hover {
       border-color: var(--sui-primary-accent-color);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (prefers-reduced-motion) {
+      transition: none;
     }
   }
 

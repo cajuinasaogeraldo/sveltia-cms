@@ -1840,6 +1840,37 @@ When Editorial Workflow is enabled:
 
 The workflow uses GitHub labels with the `sveltia-cms/` prefix (e.g., `sveltia-cms/draft`, `sveltia-cms/pending_review`, `sveltia-cms/pending_publish`) to track entry status.
 
+#### Customizing Workflow Commit Messages
+
+You can customize commit messages for Editorial Workflow operations using the `commit_messages` option:
+
+```yaml
+backend:
+  name: github
+  repo: owner/repo
+  commit_messages:
+    workflowPublish: 'Merge: {{title}} [{{author-login}}]'
+    workflowPrTitle: '📝 Draft: {{title}}'
+    workflowPrBody: |
+      New entry in {{collection}}
+      Author: {{author-name}} ({{author-email}})
+```
+
+**Available placeholders:**
+
+- `{{title}}` - Entry title
+- `{{slug}}` - Entry slug/filename
+- `{{collection}}` - Collection name
+- `{{author-name}}` - Git author name
+- `{{author-login}}` - GitHub username
+- `{{author-email}}` - Git author email
+
+**Default messages:**
+
+- `workflowPublish`: `Publish {{collection}} "{{slug}}"`
+- `workflowPrTitle`: `Editorial Workflow: {{title}}`
+- `workflowPrBody`: `Creating entry: {{collection}}/{{slug}}`
+
 #### Backend options for Editorial Workflow
 
 ```yaml

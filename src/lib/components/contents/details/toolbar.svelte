@@ -20,6 +20,7 @@
   import EditSlugDialog from '$lib/components/contents/details/edit-slug-dialog.svelte';
   import { goBack, goto } from '$lib/services/app/navigation';
   import { getAssetFolder } from '$lib/services/assets/folders';
+  import { isWorkflowEnabled } from '$lib/services/contents/workflow/actions';
   import { skipCIConfigured, skipCIEnabled } from '$lib/services/backends/git/shared/integration';
   import { getCollectionLabel } from '$lib/services/contents/collection';
   import { deleteEntries } from '$lib/services/contents/collection/data/delete';
@@ -63,6 +64,7 @@
 
   const isNew = $derived($entryDraft?.isNew ?? true);
   const isIndexFile = $derived($entryDraft?.isIndexFile ?? false);
+  const isWorkflow = $derived(isWorkflowEnabled());
   const collection = $derived($entryDraft?.collection);
   const entryCollection = $derived(collection?._type === 'entry' ? collection : undefined);
   const collectionFile = $derived($entryDraft?.collectionFile);
@@ -288,7 +290,9 @@
   {#if $skipCIConfigured}
     <SplitButton
       variant="primary"
-      label={$_(saving ? 'saving' : 'save')}
+      label={$_(
+        saving ? (isWorkflow ? 'saving_draft' : 'saving') : isWorkflow ? 'save_draft' : 'save',
+      )}
       disabled={disabled || !modified || saving}
       keyShortcuts="Accel+S"
       onclick={() => {
@@ -310,7 +314,9 @@
   {:else}
     <Button
       variant="primary"
-      label={$_(saving ? 'saving' : 'save')}
+      label={$_(
+        saving ? (isWorkflow ? 'saving_draft' : 'saving') : isWorkflow ? 'save_draft' : 'save',
+      )}
       disabled={disabled || !modified || saving}
       keyShortcuts="Accel+S"
       onclick={() => {
