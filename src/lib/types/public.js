@@ -1221,6 +1221,15 @@
  * @property {string} [uploadMedia] Message to be used when new files are uploaded/updated.
  * @property {string} [deleteMedia] Message to be used when existing files are deleted.
  * @property {string} [openAuthoring] Message to be used when committed via a forked repository.
+ * @property {string} [workflowPublish] Message for the merge commit when publishing via Editorial
+ * Workflow. Placeholders: `{{slug}}`, `{{collection}}`, `{{title}}`, `{{author-login}}`,
+ * `{{author-name}}`, `{{author-email}}`. Default: `Publish {{collection}} "{{slug}}"`.
+ * @property {string} [workflowPrTitle] Title for pull requests created by Editorial Workflow.
+ * Placeholders: `{{slug}}`, `{{collection}}`, `{{title}}`, `{{author-login}}`, `{{author-name}}`,
+ * `{{author-email}}`. Default: `Editorial Workflow: {{title}}`.
+ * @property {string} [workflowPrBody] Body for pull requests created by Editorial Workflow.
+ * Placeholders: `{{slug}}`, `{{collection}}`, `{{title}}`, `{{author-login}}`, `{{author-name}}`,
+ * `{{author-email}}`. Default: `Creating entry: {{collection}}/{{slug}}`.
  * @see https://decapcms.org/docs/configuration-options/#commit-message-templates
  */
 
@@ -1270,9 +1279,11 @@
  * `false`.
  * @property {string} [preview_context] Deploy preview link context.
  * @property {string} [preview_url] Custom URL pattern for entry preview with Editorial Workflow.
- * Supported placeholders: `{{branch}}`, `{{collection}}`, `{{slug}}`, `{{pr_number}}`,
+ * Supported placeholders: `{{branch}}` (raw branch name), `{{branch_safe}}` (URL-safe branch name
+ * with special characters replaced by hyphens), `{{collection}}`, `{{slug}}`, `{{pr_number}}`,
  * `{{timestamp}}`, `{{title}}`. When configured, a `sveltia-cms-preview` repository dispatch event
- * is triggered to build the preview via your GitHub Actions workflow.
+ * is triggered to build the preview via your GitHub Actions workflow. The workflow run status is
+ * tracked automatically via polling.
  * @property {boolean} [open_authoring] Whether to use Open Authoring. Default: `false`.
  * @property {'repo' | 'public_repo'} [auth_scope] Authentication scope for Open Authoring.
  * @see https://decapcms.org/docs/github-backend/

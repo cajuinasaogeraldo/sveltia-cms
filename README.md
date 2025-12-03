@@ -1840,6 +1840,37 @@ When Editorial Workflow is enabled:
 
 The workflow uses GitHub labels with the `sveltia-cms/` prefix (e.g., `sveltia-cms/draft`, `sveltia-cms/pending_review`, `sveltia-cms/pending_publish`) to track entry status.
 
+#### Customizing Workflow Commit Messages
+
+You can customize commit messages for Editorial Workflow operations using the `commit_messages` option:
+
+```yaml
+backend:
+  name: github
+  repo: owner/repo
+  commit_messages:
+    workflowPublish: 'Merge: {{title}} [{{author-login}}]'
+    workflowPrTitle: '📝 Draft: {{title}}'
+    workflowPrBody: |
+      New entry in {{collection}}
+      Author: {{author-name}} ({{author-email}})
+```
+
+**Available placeholders:**
+
+- `{{title}}` - Entry title
+- `{{slug}}` - Entry slug/filename
+- `{{collection}}` - Collection name
+- `{{author-name}}` - Git author name
+- `{{author-login}}` - GitHub username
+- `{{author-email}}` - Git author email
+
+**Default messages:**
+
+- `workflowPublish`: `Publish {{collection}} "{{slug}}"`
+- `workflowPrTitle`: `Editorial Workflow: {{title}}`
+- `workflowPrBody`: `Creating entry: {{collection}}/{{slug}}`
+
 #### Backend options for Editorial Workflow
 
 ```yaml
@@ -1862,9 +1893,16 @@ Setting `squash_merges: true` causes all commits to be "squashed" into a single 
 
 When an entry is "In Review", you can build a preview to see how it will look before publishing. To enable preview functionality, configure `preview_url` in your backend settings. When clicking "Build Preview", Sveltia CMS triggers a `sveltia-cms-preview` repository dispatch event that can be handled by your GitHub Actions workflow.
 
+Sveltia CMS automatically tracks the workflow run status by polling the GitHub Actions API. The UI will show:
+
+- **Building** - When the workflow is queued or in progress
+- **Ready** - When the workflow completes successfully
+- **Error** - When the workflow fails or times out (10 minute max)
+
 ##### Supported placeholders for preview_url
 
 - `{{branch}}` - The entry's branch name (e.g., `cms/posts/my-article`)
+- `{{branch_safe}}` - URL-safe branch name with special characters replaced by hyphens (e.g., `cms-posts-my-article`)
 - `{{collection}}` - The collection name (e.g., `posts`)
 - `{{slug}}` - The entry slug (e.g., `my-article`)
 - `{{pr_number}}` - The Pull Request number
@@ -1877,7 +1915,7 @@ When an entry is "In Review", you can build a preview to see how it will look be
 backend:
   name: github
   repo: owner/repo
-  preview_url: https://preview-{{branch}}.example.com
+  preview_url: https://preview-{{branch_safe}}.example.com
   # Or with more placeholders:
   # preview_url: https://{{collection}}-{{slug}}.preview.example.com
 ```
@@ -1911,20 +1949,23 @@ jobs:
         run: npm run build
         env:
           PREVIEW_BRANCH: ${{ github.event.client_payload.branch }}
+          PREVIEW_BRANCH_SAFE: ${{ github.event.client_payload.branch_safe }}
 
       - name: Deploy to preview environment
         # Add your deployment step here (Netlify, Vercel, Cloudflare Pages, etc.)
         run: |
           echo "Deploying preview for:"
           echo "  Branch: ${{ github.event.client_payload.branch }}"
+          echo "  Branch (safe): ${{ github.event.client_payload.branch_safe }}"
           echo "  Collection: ${{ github.event.client_payload.collection }}"
           echo "  Slug: ${{ github.event.client_payload.slug }}"
-          echo "  PR: #${{ github.event.client_payload.prNumber }}"
+          echo "  PR: #${{ github.event.client_payload.pr_number }}"
 ```
 
 The dispatch event payload includes:
 
 - `branch`: The entry's branch name (e.g., `cms/posts/my-article`)
+- `branch_safe`: URL-safe branch name (e.g., `cms-posts-my-article`)
 - `collection`: The collection name
 - `slug`: The entry slug
 - `prNumber`: The Pull Request number

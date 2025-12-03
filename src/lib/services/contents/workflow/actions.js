@@ -1,5 +1,4 @@
 import { get } from 'svelte/store';
-import { _ } from 'svelte-i18n';
 
 import { backend } from '$lib/services/backends';
 import { commitChanges as githubCommitChanges } from '$lib/services/backends/git/github/commits';
@@ -17,6 +16,7 @@ import {
   updatePRStatus,
 } from '$lib/services/backends/git/github/pull-requests';
 import { repository } from '$lib/services/backends/git/github/repository';
+import { createWorkflowMessage } from '$lib/services/backends/git/shared/commits';
 import { cmsConfig } from '$lib/services/config';
 import {
   addUnpublishedEntry,
@@ -29,6 +29,7 @@ import {
   WORKFLOW_STATUS,
   workflowEntriesLoaded,
 } from '$lib/services/contents/workflow';
+import { clearPreviewState } from '$lib/services/contents/workflow/preview';
 
 /**
  * @import { FileChange, UnpublishedEntry, WorkflowStatus } from '$lib/types/private';
@@ -104,12 +105,16 @@ export const loadUnpublishedEntries = async () => {
           prNumber: pr.number,
           prUrl: pr.url,
           branch: pr.headBranch,
+          headSha: pr.headSha,
           updatedAt: pr.updatedAt,
           author: pr.author,
         });
       })
       .filter(
-        /** @type {(e: UnpublishedEntry | null) => e is UnpublishedEntry} */
+        /**
+         * Filter out null entries.
+         * @type {(e: UnpublishedEntry | null) => e is UnpublishedEntry}
+         */
         ((e) => e !== null),
       );
 
@@ -123,19 +128,21 @@ export const loadUnpublishedEntries = async () => {
 };
 
 /**
- * Commit changes to a specific branch.
+ * Commit changes to a specific branch by temporarily switching the repository branch context.
  * @param {string} branchName Branch name.
  * @param {FileChange[]} changes File changes.
- * @returns {Promise<void>}
+ * @returns {Promise<string | undefined>} Commit SHA if available.
  */
-const commitToBranch = async (branchName, changes) => {
+export const commitToBranch = async (branchName, changes) => {
   // Temporarily switch repository branch context
   const originalBranch = repository.branch;
 
   try {
     Object.assign(repository, { branch: branchName });
 
-    await githubCommitChanges(changes, { commitType: 'create' });
+    const result = await githubCommitChanges(changes, { commitType: 'create' });
+
+    return result?.sha;
   } finally {
     // Restore original branch
     Object.assign(repository, { branch: originalBranch });
@@ -172,12 +179,15 @@ export const persistUnpublishedEntry = async ({
 
     try {
       // Commit changes to existing branch
-      await commitToBranch(branchName, changes);
+      const commitSha = await commitToBranch(branchName, changes);
 
+      // Clear preview state from localStorage since content changed
+      clearPreviewState(collection, slug);
       updateUnpublishedEntry(collection, slug, {
         isPersisting: false,
         data,
         title,
+        headSha: commitSha,
         updatedAt: new Date(),
       });
 
@@ -195,14 +205,15 @@ export const persistUnpublishedEntry = async ({
     await createBranch(branchName, baseBranch);
 
     // Commit changes to the new branch
-    await commitToBranch(branchName, changes);
-
+    const commitSha = await commitToBranch(branchName, changes);
     // Create PR
     const statusLabel = getStatusLabel(status);
+    const prTitle = createWorkflowMessage('workflowPrTitle', { collection, slug, title });
+    const prBody = createWorkflowMessage('workflowPrBody', { collection, slug, title });
 
     const pr = await createPullRequest({
-      title: `${get(_)('editorial_workflow')}: ${title}`,
-      body: `Creating new entry: ${collection}/${slug}`,
+      title: prTitle,
+      body: prBody,
       head: branchName,
       base: baseBranch,
       labels: [statusLabel],
@@ -218,6 +229,7 @@ export const persistUnpublishedEntry = async ({
       prNumber: pr.number,
       prUrl: pr.url,
       branch: branchName,
+      headSha: commitSha,
       updatedAt: new Date(),
     };
 
@@ -287,9 +299,13 @@ export const publishEntry = async (collection, slug) => {
   updateUnpublishedEntry(collection, slug, { isPublishing: true });
 
   try {
-    await mergePullRequest(entry.prNumber, {
-      commitTitle: `Publish: ${entry.title ?? slug}`,
+    const commitTitle = createWorkflowMessage('workflowPublish', {
+      collection,
+      slug,
+      title: entry.title,
     });
+
+    await mergePullRequest(entry.prNumber, { commitTitle });
 
     // Delete the branch after merging
     if (entry.branch) {

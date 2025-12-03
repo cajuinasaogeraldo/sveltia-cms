@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 
 import { cmsConfig } from '$lib/services/config';
-import { getCollectionLabel } from '$lib/services/contents/collection';
+import { getCollection, getCollectionLabel } from '$lib/services/contents/collection';
 import { user } from '$lib/services/user';
 
 /**
@@ -14,12 +14,51 @@ import { user } from '$lib/services/user';
  * @see https://decapcms.org/docs/configuration-options/#commit-message-templates
  */
 const DEFAULT_COMMIT_MESSAGES = {
-  create: 'Create {{collection}} “{{slug}}”',
-  update: 'Update {{collection}} “{{slug}}”',
-  delete: 'Delete {{collection}} “{{slug}}”',
-  uploadMedia: 'Upload “{{path}}”',
-  deleteMedia: 'Delete “{{path}}”',
+  create: 'Create {{collection}} "{{slug}}"',
+  update: 'Update {{collection}} "{{slug}}"',
+  delete: 'Delete {{collection}} "{{slug}}"',
+  uploadMedia: 'Upload "{{path}}"',
+  deleteMedia: 'Delete "{{path}}"',
   openAuthoring: '{{message}}',
+  // Editorial Workflow messages
+  workflowPublish: 'Publish {{collection}} "{{slug}}"',
+  workflowPrTitle: 'Editorial Workflow: {{title}}',
+  workflowPrBody: 'Creating entry: {{collection}}/{{slug}}',
+};
+
+/**
+ * Create a workflow message (for PR titles, bodies, and publish commits).
+ * @param {'workflowPublish' | 'workflowPrTitle' | 'workflowPrBody'} messageType Message type.
+ * @param {object} context Message context.
+ * @param {string} context.collection Collection name.
+ * @param {string} context.slug Entry slug.
+ * @param {string} [context.title] Entry title.
+ * @returns {string} Formatted message.
+ */
+export const createWorkflowMessage = (messageType, { collection, slug, title }) => {
+  const { commit_messages: customCommitMessages = {} } = /** @type {GitBackend} */ (
+    get(cmsConfig)?.backend ?? {}
+  );
+
+  const { email = '', login = '', name = '' } = /** @type {User} */ (get(user)) ?? {};
+  const collectionObj = collection ? getCollection(collection) : undefined;
+
+  const collectionLabel = collectionObj
+    ? getCollectionLabel(collectionObj, { useSingular: true })
+    : '';
+
+  // @ts-ignore
+  let message = customCommitMessages[messageType] || DEFAULT_COMMIT_MESSAGES[messageType] || '';
+
+  message = message
+    .replaceAll('{{slug}}', slug || '')
+    .replaceAll('{{collection}}', collectionLabel)
+    .replaceAll('{{title}}', title || slug || '')
+    .replaceAll('{{author-email}}', email ?? '')
+    .replaceAll('{{author-login}}', login ?? '')
+    .replaceAll('{{author-name}}', name ?? '');
+
+  return message;
 };
 
 /**

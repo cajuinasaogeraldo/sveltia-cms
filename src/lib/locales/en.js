@@ -37,6 +37,8 @@ export const strings = {
   delete: 'Delete',
   save: 'Save',
   saving: 'Saving…',
+  save_draft: 'Save Draft',
+  saving_draft: 'Saving Draft…',
   rename: 'Rename',
   update: 'Update',
   replace: 'Replace',
@@ -734,10 +736,18 @@ export const strings = {
 
   // Editorial Workflow
   status: {
+    draft: 'Draft',
     drafts: 'Drafts',
     in_review: 'In Review',
+    pending_review: 'In Review',
+    pending_publish: 'Ready',
     ready: 'Ready',
   },
+  editing_workflow_entry: 'Editing Draft PR',
+  workflow_branch: 'Workflow Branch',
+  status_change_failed: 'Failed to change status',
+  drag_to_change_status: 'Drag to change status',
+  drop_entry_here: 'Drop entry here',
   request_review: 'Request Review',
   approve: 'Approve',
   request_changes: 'Request Changes',

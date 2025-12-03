@@ -1132,6 +1132,7 @@
  * @property {number} [prNumber] Pull request number. GitHub backend only.
  * @property {string} [prUrl] Pull request URL. GitHub backend only.
  * @property {string} [branch] Branch name for the PR.
+ * @property {string} [headSha] Latest commit SHA on the PR branch.
  * @property {boolean} [isFetching] Whether the entry is being fetched.
  * @property {boolean} [isPersisting] Whether the entry is being saved.
  * @property {boolean} [isUpdatingStatus] Whether the status is being updated.
@@ -1140,6 +1141,8 @@
  * @property {PreviewStatus} [previewStatus] Current preview build status.
  * @property {string} [previewUrl] URL to view the preview.
  * @property {boolean} [isBuildingPreview] Whether preview is being built.
+ * @property {number} [workflowRunId] GitHub Actions workflow run ID for tracking.
+ * @property {string} [previewForSha] SHA of the commit the preview was built for.
  * @property {Date} [updatedAt] Last update time.
  * @property {string} [author] Author of the entry.
  */
@@ -1163,6 +1166,7 @@
  * @property {string} state PR state (open, closed, merged).
  * @property {string} url PR URL.
  * @property {string} headBranch Head branch name.
+ * @property {string} [headSha] SHA of the head commit.
  * @property {string} baseBranch Base branch name.
  * @property {string[]} labels Label names.
  * @property {Date} createdAt Creation time.

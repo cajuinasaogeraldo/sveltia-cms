@@ -84,6 +84,7 @@ const LIST_PULL_REQUESTS_QUERY = `
           state
           url
           headRefName
+          headRefOid
           baseRefName
           createdAt
           updatedAt
@@ -137,6 +138,7 @@ export const listPullRequests = async ({ states = ['OPEN'] } = {}) => {
       state: pr.state.toLowerCase(),
       url: pr.url,
       headBranch: pr.headRefName,
+      headSha: pr.headRefOid,
       baseBranch: pr.baseRefName,
       labels: pr.labels.nodes.map((/** @type {{ name: string }} */ label) => label.name),
       createdAt: new Date(pr.createdAt),
@@ -397,7 +399,11 @@ export const getFileFromBranch = async (path, branchName) => {
   );
 
   if (result.encoding === 'base64') {
-    return atob(result.content);
+    // Decode base64 to UTF-8 properly
+    const binaryString = atob(result.content);
+    const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0));
+
+    return new TextDecoder('utf-8').decode(bytes);
   }
 
   return result.content;
