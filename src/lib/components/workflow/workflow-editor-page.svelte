@@ -165,21 +165,15 @@
     };
   });
 
-  // Reset panes when draft changes
+  // Configure panes when draft is ready
   $effect(() => {
-    if (paneStateKey) {
-      $editorFirstPane = null;
-      $editorSecondPane = null;
+    if ($entryDraft) {
+      void [showPreview, canPreview, $isSmallScreen, $isMediumScreen];
+
+      untrack(() => {
+        switchPanes();
+      });
     }
-  });
-
-  // Configure panes based on settings
-  $effect(() => {
-    void [showPreview, canPreview, $isSmallScreen, $isMediumScreen];
-
-    untrack(() => {
-      switchPanes();
-    });
   });
 
   // Save pane state when it changes

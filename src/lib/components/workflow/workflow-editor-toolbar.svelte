@@ -190,13 +190,11 @@
   </MenuButton>
   <Button
     variant="primary"
-    label={saving ? $_('saving') : $_('save_to_branch', { default: 'Save to Branch' })}
+    label={saving ? $_('saving_draft') : $_('save_draft')}
     disabled={!modified || saving}
     keyShortcuts="Accel+S"
     onclick={save}
-  >
-    <Icon slot="start-icon" name="commit" />
-  </Button>
+  />
 </Toolbar>
 
 <Toast bind:show={showValidationToast}>
