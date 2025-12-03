@@ -9,6 +9,7 @@
     draftEntries,
     pendingPublishEntries,
     pendingReviewEntries,
+    setWorkflowEditContext,
     WORKFLOW_STATUS,
     workflowLoading,
   } from '$lib/services/contents/workflow';
@@ -136,6 +137,9 @@
    * @param {UnpublishedEntry} entry Entry.
    */
   const editEntry = (entry) => {
+    // Set workflow context before navigation
+    setWorkflowEditContext(entry);
+
     goto(`/collections/${entry.collection}/entries/${entry.slug}`, {
       transitionType: 'forwards',
     });

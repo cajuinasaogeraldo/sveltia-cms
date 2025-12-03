@@ -740,10 +740,15 @@ export const strings = {
 
   // Editorial Workflow
   status: {
+    draft: '下書き',
     drafts: '下書き',
     in_review: 'レビュー中',
+    pending_review: 'レビュー中',
+    pending_publish: '公開可',
     ready: '公開可',
   },
+  editing_workflow_entry: '下書きPRを編集中',
+  workflow_branch: 'ワークフローブランチ',
   status_change_failed: 'ステータスの変更に失敗しました',
   drag_to_change_status: 'ドラッグしてステータス変更',
   drop_entry_here: 'ここにドロップ',

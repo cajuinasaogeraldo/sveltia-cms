@@ -36,6 +36,9 @@
   import { showContentOverlay } from '$lib/services/contents/editor';
   import { getEntrySummary } from '$lib/services/contents/entry/summary';
   import { isSmallScreen } from '$lib/services/user/env';
+  import { get } from 'svelte/store';
+  import { repository } from '$lib/services/backends/git/github/repository';
+  import { currentWorkflowBranch } from '$lib/services/contents/workflow';
 
   /**
    * @import { InternalCollection } from '$lib/types/private';
@@ -167,6 +170,14 @@
       }
 
       if (routeType === 'entries' && subPath) {
+        const workflowBranch = get(currentWorkflowBranch);
+
+        // If editing a workflow entry, temporarily switch branch context
+        if (workflowBranch) {
+          const originalBranch = repository.branch;
+          repository.branch = workflowBranch;
+        }
+
         const originalEntry = $listedEntries.find((entry) => entry.subPath === subPath);
 
         if (originalEntry && $appLocale) {
@@ -178,6 +189,11 @@
               entry: getEntrySummary($selectedCollection, originalEntry),
             },
           });
+        }
+
+        // Restore original branch if it was changed
+        if (workflowBranch) {
+          // Note: branch will be restored when exiting editor
         }
       }
     }

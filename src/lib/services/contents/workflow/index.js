@@ -163,3 +163,37 @@ export const resetWorkflowStore = () => {
   workflowEntriesLoaded.set(false);
   workflowLoading.set(false);
 };
+
+/**
+ * Store to track if we're currently editing a workflow entry.
+ * @type {Writable<string | null>}
+ */
+export const currentWorkflowBranch = writable(null);
+
+/**
+ * Store to track the current workflow entry being edited.
+ * @type {Writable<UnpublishedEntry | null>}
+ */
+export const currentWorkflowEntry = writable(null);
+
+/**
+ * Set the current workflow branch context for editing.
+ * @param {UnpublishedEntry | null} entry Workflow entry or null to clear.
+ */
+export const setWorkflowEditContext = (entry) => {
+  if (entry && entry.branch) {
+    currentWorkflowBranch.set(entry.branch);
+    currentWorkflowEntry.set(entry);
+  } else {
+    currentWorkflowBranch.set(null);
+    currentWorkflowEntry.set(null);
+  }
+};
+
+/**
+ * Clear the workflow edit context.
+ */
+export const clearWorkflowEditContext = () => {
+  currentWorkflowBranch.set(null);
+  currentWorkflowEntry.set(null);
+};
