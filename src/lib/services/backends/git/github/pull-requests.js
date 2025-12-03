@@ -399,7 +399,11 @@ export const getFileFromBranch = async (path, branchName) => {
   );
 
   if (result.encoding === 'base64') {
-    return atob(result.content);
+    // Decode base64 to UTF-8 properly
+    const binaryString = atob(result.content);
+    const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0));
+
+    return new TextDecoder('utf-8').decode(bytes);
   }
 
   return result.content;
