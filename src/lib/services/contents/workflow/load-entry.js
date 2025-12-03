@@ -107,7 +107,7 @@ export const loadEntryFromWorkflowBranch = async (collection, slug) => {
             },
           });
 
-          return { locale, parsed };
+          return { locale, parsed, path: file.path };
         } catch (/** @type {any} */ error) {
           // eslint-disable-next-line no-console
           console.error(`Failed to load file ${file.path}:`, error);
@@ -117,13 +117,18 @@ export const loadEntryFromWorkflowBranch = async (collection, slug) => {
       }),
     );
 
-    // Build locales map from results
+    // Build locales map from results in the correct LocalizedEntry format
     /** @type {Record<string, any>} */
     const locales = {};
 
     fileResults.forEach((result) => {
       if (result) {
-        locales[result.locale] = result.parsed;
+        // Create LocalizedEntry structure with slug, path, and content
+        locales[result.locale] = {
+          slug,
+          path: result.path,
+          content: result.parsed,
+        };
       }
     });
 
