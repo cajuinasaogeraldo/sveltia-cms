@@ -37,10 +37,17 @@ import { clearPreviewState } from '$lib/services/contents/workflow/preview';
 
 /**
  * Check if editorial workflow is enabled.
+ * Editorial workflow requires both the config setting AND a GitHub backend.
  * @returns {boolean} Whether editorial workflow is enabled.
  */
 export const isWorkflowEnabled = () => {
   const config = get(cmsConfig);
+  const _backend = get(backend);
+
+  // Editorial workflow requires GitHub backend
+  if (!_backend?.isGit || _backend.name !== 'github') {
+    return false;
+  }
 
   return config?.publish_mode === 'editorial_workflow';
 };

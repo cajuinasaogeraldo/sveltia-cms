@@ -187,18 +187,45 @@ describe('workflow actions', () => {
   });
 
   describe('isWorkflowEnabled', () => {
-    test('returns true when publish_mode is editorial_workflow', () => {
-      vi.mocked(get).mockReturnValueOnce({ publish_mode: 'editorial_workflow' });
+    test('returns true when publish_mode is editorial_workflow and backend is github', () => {
+      vi.mocked(get)
+        .mockReturnValueOnce({ publish_mode: 'editorial_workflow' }) // cmsConfig
+        .mockReturnValueOnce({ isGit: true, name: 'github' }); // backend
       expect(isWorkflowEnabled()).toBe(true);
     });
 
     test('returns false when publish_mode is not set', () => {
-      vi.mocked(get).mockReturnValueOnce({});
+      vi.mocked(get)
+        .mockReturnValueOnce({}) // cmsConfig
+        .mockReturnValueOnce({ isGit: true, name: 'github' }); // backend
       expect(isWorkflowEnabled()).toBe(false);
     });
 
     test('returns false when publish_mode is simple', () => {
-      vi.mocked(get).mockReturnValueOnce({ publish_mode: 'simple' });
+      vi.mocked(get)
+        .mockReturnValueOnce({ publish_mode: 'simple' }) // cmsConfig
+        .mockReturnValueOnce({ isGit: true, name: 'github' }); // backend
+      expect(isWorkflowEnabled()).toBe(false);
+    });
+
+    test('returns false when backend is not github', () => {
+      vi.mocked(get)
+        .mockReturnValueOnce({ publish_mode: 'editorial_workflow' }) // cmsConfig
+        .mockReturnValueOnce({ isGit: true, name: 'gitlab' }); // backend
+      expect(isWorkflowEnabled()).toBe(false);
+    });
+
+    test('returns false when backend is local', () => {
+      vi.mocked(get)
+        .mockReturnValueOnce({ publish_mode: 'editorial_workflow' }) // cmsConfig
+        .mockReturnValueOnce({ isGit: false, name: 'local' }); // backend
+      expect(isWorkflowEnabled()).toBe(false);
+    });
+
+    test('returns false when backend is not set', () => {
+      vi.mocked(get)
+        .mockReturnValueOnce({ publish_mode: 'editorial_workflow' }) // cmsConfig
+        .mockReturnValueOnce(null); // backend
       expect(isWorkflowEnabled()).toBe(false);
     });
   });
@@ -206,9 +233,10 @@ describe('workflow actions', () => {
   describe('loadUnpublishedEntries', () => {
     test('loads entries from GitHub PRs', async () => {
       vi.mocked(get)
-        .mockReturnValueOnce({ publish_mode: 'editorial_workflow' }) // isWorkflowEnabled
+        .mockReturnValueOnce({ publish_mode: 'editorial_workflow' }) // isWorkflowEnabled - cmsConfig
+        .mockReturnValueOnce({ isGit: true, name: 'github' }) // isWorkflowEnabled - backend
         .mockReturnValueOnce(false) // workflowEntriesLoaded
-        .mockReturnValueOnce({ isGit: true, name: 'github' }); // backend
+        .mockReturnValueOnce({ isGit: true, name: 'github' }); // backend check in loadUnpublishedEntries
 
       vi.mocked(pullRequests.listPullRequests).mockResolvedValue([
         {
@@ -244,7 +272,9 @@ describe('workflow actions', () => {
     });
 
     test('skips loading when workflow is not enabled', async () => {
-      vi.mocked(get).mockReturnValueOnce({ publish_mode: 'simple' });
+      vi.mocked(get)
+        .mockReturnValueOnce({ publish_mode: 'simple' }) // isWorkflowEnabled - cmsConfig
+        .mockReturnValueOnce({ isGit: true, name: 'github' }); // isWorkflowEnabled - backend
 
       await loadUnpublishedEntries();
 
@@ -253,7 +283,8 @@ describe('workflow actions', () => {
 
     test('skips loading when entries are already loaded', async () => {
       vi.mocked(get)
-        .mockReturnValueOnce({ publish_mode: 'editorial_workflow' })
+        .mockReturnValueOnce({ publish_mode: 'editorial_workflow' }) // isWorkflowEnabled - cmsConfig
+        .mockReturnValueOnce({ isGit: true, name: 'github' }) // isWorkflowEnabled - backend
         .mockReturnValueOnce(true); // workflowEntriesLoaded
 
       await loadUnpublishedEntries();
@@ -263,9 +294,10 @@ describe('workflow actions', () => {
 
     test('skips non-cms branches', async () => {
       vi.mocked(get)
-        .mockReturnValueOnce({ publish_mode: 'editorial_workflow' })
-        .mockReturnValueOnce(false)
-        .mockReturnValueOnce({ isGit: true, name: 'github' });
+        .mockReturnValueOnce({ publish_mode: 'editorial_workflow' }) // isWorkflowEnabled - cmsConfig
+        .mockReturnValueOnce({ isGit: true, name: 'github' }) // isWorkflowEnabled - backend
+        .mockReturnValueOnce(false) // workflowEntriesLoaded
+        .mockReturnValueOnce({ isGit: true, name: 'github' }); // backend check in loadUnpublishedEntries
 
       vi.mocked(pullRequests.listPullRequests).mockResolvedValue([
         createMockPR({
