@@ -61,6 +61,13 @@ export const initEditorialWorkflow = () => {
   isEditorialWorkflow.set(enabled);
 };
 
+// Re-initialize editorial workflow when backend changes (e.g., after user login)
+backend.subscribe((_backend) => {
+  if (_backend) {
+    initEditorialWorkflow();
+  }
+});
+
 /**
  * Load all unpublished entries from GitHub PRs.
  * @returns {Promise<void>}
