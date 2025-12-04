@@ -5,6 +5,7 @@
   import AccountButton from '$lib/components/global/toolbar/items/account-button.svelte';
   import CreateButton from '$lib/components/global/toolbar/items/create-button.svelte';
   import HelpButton from '$lib/components/global/toolbar/items/help-button.svelte';
+  import LiveBuildIndicator from '$lib/components/global/toolbar/items/live-build-indicator.svelte';
   import NotificationsButton from '$lib/components/global/toolbar/items/notifications-button.svelte';
   import PageSwitcher from '$lib/components/global/toolbar/items/page-switcher.svelte';
   import PublishButton from '$lib/components/global/toolbar/items/publish-button.svelte';
@@ -23,6 +24,7 @@
     <div role="none" class="buttons">
       <PublishButton />
       <CreateButton />
+      <LiveBuildIndicator />
       <NotificationsButton />
       <!-- @todo Show the Help menu when end user resources are prepared -->
       {#if 0}

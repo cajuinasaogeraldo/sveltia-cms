@@ -7,9 +7,14 @@ import { getUnpublishedEntry, updateUnpublishedEntry } from '$lib/services/conte
 import { buildPreview, buildPreviewUrl, getPreviewStatus, isPreviewEnabled } from './preview';
 
 // Mock the stores and API before importing the module
-vi.mock('svelte/store', () => ({
-  get: vi.fn(),
-}));
+vi.mock('svelte/store', async (importOriginal) => {
+  const actual = await importOriginal();
+
+  return {
+    .../** @type {object} */ (actual),
+    get: vi.fn(),
+  };
+});
 
 vi.mock('$lib/services/backends/git/github/repository', () => ({
   repository: { owner: 'test-owner', repo: 'test-repo' },
@@ -26,6 +31,11 @@ vi.mock('$lib/services/config', () => ({
 vi.mock('$lib/services/contents/workflow', () => ({
   getUnpublishedEntry: vi.fn(),
   updateUnpublishedEntry: vi.fn(),
+}));
+
+vi.mock('$lib/services/contents/workflow/preview-queue', () => ({
+  enqueuePreview: vi.fn(),
+  updateActivePreviewUrl: vi.fn(),
 }));
 
 describe('preview', () => {

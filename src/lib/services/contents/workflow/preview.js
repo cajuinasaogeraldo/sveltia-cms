@@ -4,6 +4,10 @@ import { repository } from '$lib/services/backends/git/github/repository';
 import { fetchAPI } from '$lib/services/backends/git/shared/api';
 import { cmsConfig } from '$lib/services/config';
 import { getUnpublishedEntry, updateUnpublishedEntry } from '$lib/services/contents/workflow';
+import {
+  enqueuePreview,
+  updateActivePreviewUrl,
+} from '$lib/services/contents/workflow/preview-queue';
 
 /**
  * @import { PreviewStatus, UnpublishedEntry } from '$lib/types/private';
@@ -280,6 +284,11 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
             workflowRunId: run.id,
             headSha,
           });
+
+          // Update the preview queue with the URL
+          if (url) {
+            updateActivePreviewUrl(collection, slug, url);
+          }
         } else {
           updateUnpublishedEntry(collection, slug, {
             previewStatus: 'error',
@@ -327,6 +336,9 @@ export const buildPreview = async (collection, slug) => {
   if (!isPreviewEnabled()) {
     throw new Error('Preview is not configured. Set preview_url in your CMS config.');
   }
+
+  // Add to preview queue - this invalidates previous previews
+  enqueuePreview(collection, slug);
 
   const dispatchTime = new Date();
   const { headSha } = entry;

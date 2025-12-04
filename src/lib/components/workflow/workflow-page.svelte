@@ -24,6 +24,7 @@
     isPreviewOutdated,
     restorePreviewState,
   } from '$lib/services/contents/workflow/preview';
+  import { isActivePreview } from '$lib/services/contents/workflow/preview-queue';
 
   /**
    * @import { UnpublishedEntry, WorkflowStatus } from '$lib/types/private';
@@ -164,13 +165,20 @@
     }
 
     const outdated = isPreviewOutdated(entry.collection, entry.slug);
+    const isActive = isActivePreview(entry.collection, entry.slug);
 
-    if (entry.previewStatus === 'ready' && entry.previewUrl && !outdated) {
+    // Only the active preview in the queue can show "View Preview"
+    if (entry.previewStatus === 'ready' && entry.previewUrl && !outdated && isActive) {
       return $_('view_preview', { default: 'View Preview' });
     }
 
     if (entry.previewStatus === 'error') {
       return $_('retry_preview', { default: 'Retry Preview' });
+    }
+
+    // If preview is ready but not active (another preview was built), show rebuild
+    if (entry.previewStatus === 'ready' && !isActive) {
+      return $_('rebuild_preview', { default: 'Rebuild Preview' });
     }
 
     if (outdated) {
@@ -181,12 +189,17 @@
   };
 
   /**
-   * Check if preview can be viewed (ready and not outdated).
+   * Check if preview can be viewed (ready, not outdated, and is the active preview in queue).
    * @param {UnpublishedEntry} entry Entry.
    * @returns {boolean} Whether preview can be viewed.
    */
   const canViewPreview = (entry) => {
     if (!entry.previewUrl || entry.previewStatus !== 'ready') {
+      return false;
+    }
+
+    // Only allow viewing if this is the active preview in the queue
+    if (!isActivePreview(entry.collection, entry.slug)) {
       return false;
     }
 
