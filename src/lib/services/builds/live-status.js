@@ -221,8 +221,21 @@ const handleVisibilityChange = () => {
 };
 
 /**
+ * Load initial state from localStorage without starting polling.
+ * Used to show cached state immediately before polling starts.
+ */
+export const loadInitialState = () => {
+  const stored = loadFromStorage();
+
+  if (stored) {
+    liveBuildState.set(stored);
+    // Don't set isLiveBuildRunning from cached state, wait for fresh poll
+  }
+};
+
+/**
  * Start polling for live builds.
- * Should be called after user authentication.
+ * Should be called when the popup menu is opened.
  */
 export const startLiveBuildPolling = () => {
   if (!isGitHubBackend()) {
@@ -235,14 +248,6 @@ export const startLiveBuildPolling = () => {
   }
 
   isPollingLiveBuilds.set(true);
-
-  // Load initial state from storage
-  const stored = loadFromStorage();
-
-  if (stored) {
-    liveBuildState.set(stored);
-    isLiveBuildRunning.set(!!stored.currentBuild);
-  }
 
   // Set up visibility change listener
   document.addEventListener('visibilitychange', handleVisibilityChange);

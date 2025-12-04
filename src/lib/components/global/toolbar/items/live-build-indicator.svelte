@@ -1,12 +1,12 @@
 <script>
   import { Button, Divider, Icon, Menu, MenuButton, MenuItem } from '@sveltia/ui';
-  import { onDestroy, onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
 
   import { backend } from '$lib/services/backends';
   import {
     isLiveBuildRunning,
     liveBuildState,
+    loadInitialState,
     refreshLiveBuilds,
     startLiveBuildPolling,
     stopLiveBuildPolling,
@@ -16,21 +16,22 @@
    * @import { LiveBuild } from '$lib/services/builds/live-status';
    */
 
-  const isGitHubBackend = $derived($backend?.isGit && $backend?.name === 'github');
+  // Only show for remote GitHub backend (not local file system)
+  const isRemoteGitHubBackend = $derived($backend?.isGit && $backend?.name === 'github');
 
-  onMount(() => {
-    if (isGitHubBackend) {
-      startLiveBuildPolling();
+  /** Whether the popup menu is open. */
+  let isPopupOpen = $state(false);
+
+  // Load initial state from localStorage when component mounts (no polling yet)
+  $effect(() => {
+    if (isRemoteGitHubBackend) {
+      loadInitialState();
     }
   });
 
-  onDestroy(() => {
-    stopLiveBuildPolling();
-  });
-
-  // Start/stop polling based on backend
+  // Start/stop polling based on popup open state
   $effect(() => {
-    if (isGitHubBackend) {
+    if (isPopupOpen && isRemoteGitHubBackend) {
       startLiveBuildPolling();
     } else {
       stopLiveBuildPolling();
@@ -127,14 +128,16 @@
   };
 </script>
 
-{#if isGitHubBackend}
+{#if isRemoteGitHubBackend}
   <MenuButton
     variant="ghost"
-    iconic
     popupPosition="bottom-right"
-    aria-label={$_('live_build_status', { default: 'Live Build Status' })}
+    aria-label={$_('deploy_status', { default: 'Deploy Status' })}
+    onOpenChange={(/** @type {boolean} */ open) => {
+      isPopupOpen = open;
+    }}
   >
-    {#snippet endIcon()}
+    {#snippet startIcon()}
       <span class="indicator" class:running={$isLiveBuildRunning}>
         {#if $isLiveBuildRunning}
           <Icon name="sync" class="spinning" />
@@ -147,10 +150,11 @@
         {/if}
       </span>
     {/snippet}
+    {$_('deploy', { default: 'Deploy' })}
     {#snippet popup()}
-      <Menu aria-label={$_('live_build_status', { default: 'Live Build Status' })}>
+      <Menu aria-label={$_('deploy_status', { default: 'Deploy Status' })}>
         <div role="none" class="menu-header">
-          <span class="title">{$_('live_builds', { default: 'Live Builds (main)' })}</span>
+          <span class="title">{$_('deploy_site', { default: 'Site Deployments' })}</span>
           <Button
             variant="ghost"
             size="small"
@@ -168,8 +172,10 @@
             <div role="none" class="build-item {getStatusClass(build)}">
               <Icon name={getStatusIcon(build)} class="status-icon spinning" />
               <div role="none" class="build-info">
-                <span class="build-name">{build.name}</span>
-                <span class="build-time">{$_('building', { default: 'Building...' })}</span>
+                <span class="build-name"
+                  >{$_('deploying_site', { default: 'Deploying site...' })}</span
+                >
+                <span class="build-time">{$_('in_progress', { default: 'In progress' })}</span>
               </div>
               <Icon name="open_in_new" class="external-link" />
             </div>
@@ -182,7 +188,13 @@
               <div role="none" class="build-item {getStatusClass(build)}">
                 <Icon name={getStatusIcon(build)} class="status-icon" />
                 <div role="none" class="build-info">
-                  <span class="build-name">{build.name}</span>
+                  <span class="build-name">
+                    {build.conclusion === 'success'
+                      ? $_('deploy_successful', { default: 'Deploy successful' })
+                      : build.conclusion === 'failure'
+                        ? $_('deploy_failed', { default: 'Deploy failed' })
+                        : $_('deploy_cancelled', { default: 'Deploy cancelled' })}
+                  </span>
                   <span class="build-time">{formatRelativeTime(build.createdAt)}</span>
                 </div>
                 <Icon name="open_in_new" class="external-link" />
@@ -191,7 +203,7 @@
           {/each}
         {:else}
           <div role="none" class="empty-state">
-            <span>{$_('no_recent_builds', { default: 'No recent builds' })}</span>
+            <span>{$_('no_recent_deploys', { default: 'No recent deployments' })}</span>
           </div>
         {/if}
       </Menu>

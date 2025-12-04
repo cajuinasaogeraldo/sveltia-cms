@@ -32,6 +32,7 @@ import {
   isLiveBuildRunning,
   isPollingLiveBuilds,
   liveBuildState,
+  loadInitialState,
   refreshLiveBuilds,
   startLiveBuildPolling,
   stopLiveBuildPolling,
@@ -348,6 +349,46 @@ describe('live-status', () => {
       // Initial state + updated state
       expect(states.length).toBeGreaterThanOrEqual(2);
       expect(states[states.length - 1].currentBuild?.id).toBe(123);
+    });
+  });
+
+  describe('loadInitialState', () => {
+    test('loads state from localStorage without starting polling', () => {
+      const storedState = {
+        currentBuild: null,
+        history: [
+          {
+            id: 456,
+            name: 'Build',
+            status: 'completed',
+            conclusion: 'success',
+            htmlUrl: 'https://github.com/test/repo/actions/runs/456',
+            createdAt: '2025-01-01T00:00:00Z',
+            headSha: 'def456',
+            headBranch: 'main',
+          },
+        ],
+        lastPolled: Date.now() - 60000,
+      };
+
+      localStorage.setItem('sveltia-cms-live-builds', JSON.stringify(storedState));
+
+      loadInitialState();
+
+      const state = get(liveBuildState);
+
+      expect(state.history).toHaveLength(1);
+      expect(state.history[0].id).toBe(456);
+      expect(get(isPollingLiveBuilds)).toBe(false);
+    });
+
+    test('does nothing if localStorage is empty', () => {
+      loadInitialState();
+
+      const state = get(liveBuildState);
+
+      expect(state.history).toHaveLength(0);
+      expect(state.currentBuild).toBeNull();
     });
   });
 });
