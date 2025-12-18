@@ -22,7 +22,13 @@ import {
 // Mock dependencies
 vi.mock('@sveltia/utils/storage');
 vi.mock('$lib/services/assets');
-vi.mock('$lib/services/backends');
+vi.mock('$lib/services/backends', () => ({
+  backend: { subscribe: vi.fn(() => vi.fn()) },
+  isLastCommitPublished: {
+    subscribe: vi.fn(() => vi.fn()),
+    set: vi.fn(),
+  },
+}));
 vi.mock('$lib/services/backends/git/shared/config');
 vi.mock('$lib/services/backends/process');
 vi.mock('$lib/services/contents');

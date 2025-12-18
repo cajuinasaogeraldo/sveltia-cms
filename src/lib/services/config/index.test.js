@@ -4,6 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cmsConfig, cmsConfigErrors, cmsConfigVersion, DEV_SITE_URL } from './index.js';
 
 // Mock external dependencies
+vi.mock('$lib/services/contents/workflow/actions', () => ({
+  initEditorialWorkflow: vi.fn(),
+}));
+
 vi.mock('@sveltia/utils/crypto', () => ({
   getHash: vi.fn().mockResolvedValue('mock-hash'),
 }));
@@ -58,6 +62,7 @@ vi.mock('$lib/services/user/prefs', () => ({
 }));
 
 vi.mock('$lib/services/backends', () => ({
+  backend: { subscribe: vi.fn(() => vi.fn()) },
   initBackend: vi.fn(),
   validBackendNames: ['git-gateway', 'github', 'gitlab', 'gitea'],
   gitBackendServices: {

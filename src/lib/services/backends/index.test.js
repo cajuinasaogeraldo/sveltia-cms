@@ -1,6 +1,10 @@
 import { get } from 'svelte/store';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+vi.mock('$lib/services/contents/workflow/actions', () => ({
+  initEditorialWorkflow: vi.fn(),
+}));
+
 import {
   allBackendServices,
   backend,

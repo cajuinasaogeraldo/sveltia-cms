@@ -17,7 +17,10 @@ import { expandInvalidFields } from '$lib/services/contents/editor/expanders';
 
 import { saveEntry } from './index';
 
-vi.mock('$lib/services/backends');
+vi.mock('$lib/services/backends', () => ({
+  backend: { subscribe: vi.fn(() => vi.fn()) },
+  isLastCommitPublished: { subscribe: vi.fn(() => vi.fn()) },
+}));
 vi.mock('$lib/services/backends/git/shared/integration');
 vi.mock('$lib/services/backends/save');
 vi.mock('$lib/services/contents/collection/data');
