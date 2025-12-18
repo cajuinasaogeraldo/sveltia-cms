@@ -79,7 +79,7 @@ describe('git/shared/commits', () => {
       const options = { commitType: 'create', collection: mockCollection };
       const message = createCommitMessage(changes, options);
 
-      expect(message).toBe('Create Blog Post “my-post”');
+      expect(message).toBe('Create Blog Post "my-post"');
     });
 
     it('should create default update message', () => {
@@ -88,7 +88,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Update Blog Post “my-post”');
+      expect(message).toBe('Update Blog Post "my-post"');
     });
 
     it('should create default delete message', () => {
@@ -97,7 +97,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Delete Blog Post “my-post”');
+      expect(message).toBe('Delete Blog Post "my-post"');
     });
 
     it('should create default uploadMedia message', () => {
@@ -111,7 +111,7 @@ describe('git/shared/commits', () => {
         commitType: 'uploadMedia',
       });
 
-      expect(message).toBe('Upload “static/images/photo.jpg”');
+      expect(message).toBe('Upload "static/images/photo.jpg"');
     });
 
     it('should create uploadMedia message with multiple files', () => {
@@ -125,7 +125,7 @@ describe('git/shared/commits', () => {
         commitType: 'uploadMedia',
       });
 
-      expect(message).toBe('Upload “static/images/photo1.jpg” +2');
+      expect(message).toBe('Upload "static/images/photo1.jpg" +2');
     });
 
     it('should add [skip ci] prefix when automatic deployments are disabled', () => {
@@ -136,7 +136,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('[skip ci] Create Blog Post “my-post”');
+      expect(message).toBe('[skip ci] Create Blog Post "my-post"');
     });
 
     it('should not add [skip ci] prefix for delete operations', () => {
@@ -147,7 +147,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Delete Blog Post “my-post”');
+      expect(message).toBe('Delete Blog Post "my-post"');
     });
 
     it('should handle empty user data gracefully', () => {
@@ -159,7 +159,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Create Blog Post “my-post”');
+      expect(message).toBe('Create Blog Post "my-post"');
     });
 
     it('should handle openAuthoring commit type', () => {
@@ -189,7 +189,7 @@ describe('git/shared/commits', () => {
         commitType: 'deleteMedia',
       });
 
-      expect(message).toBe('Delete “static/images/photo.jpg”');
+      expect(message).toBe('Delete "static/images/photo.jpg"');
     });
 
     it('should add [skip ci] prefix for deleteMedia when skipCI param is true', () => {
@@ -202,7 +202,7 @@ describe('git/shared/commits', () => {
         skipCI: true,
       });
 
-      expect(message).toBe('Delete “static/images/photo.jpg”');
+      expect(message).toBe('Delete "static/images/photo.jpg"');
     });
 
     it('should use custom commit messages when provided', () => {
@@ -269,7 +269,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('[skip ci] Update Blog Post “my-post”');
+      expect(message).toBe('[skip ci] Update Blog Post "my-post"');
     });
 
     it('should use skipCI parameter to override config', () => {
@@ -285,7 +285,7 @@ describe('git/shared/commits', () => {
         skipCI: true,
       });
 
-      expect(message).toBe('[skip ci] Update Blog Post “my-post”');
+      expect(message).toBe('[skip ci] Update Blog Post "my-post"');
     });
 
     it('should handle changes with no slug', () => {
@@ -296,7 +296,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Update Blog Post “”');
+      expect(message).toBe('Update Blog Post ""');
     });
 
     it('should use first slug from multiple changes', () => {
@@ -310,7 +310,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Update Blog Post “first-post”');
+      expect(message).toBe('Update Blog Post "first-post"');
     });
 
     it('should handle deleteMedia with multiple files', () => {
@@ -329,7 +329,7 @@ describe('git/shared/commits', () => {
         commitType: 'deleteMedia',
       });
 
-      expect(message).toBe('Delete “static/images/photo1.jpg” +2');
+      expect(message).toBe('Delete "static/images/photo1.jpg" +2');
     });
 
     it('should handle openAuthoring without collection', () => {
@@ -366,7 +366,7 @@ describe('git/shared/commits', () => {
         skipCI: false,
       });
 
-      expect(message).toBe('Update Blog Post “my-post”');
+      expect(message).toBe('Update Blog Post "my-post"');
     });
 
     it('should not apply [skip ci] when automatic_deployments is true and skip_ci is undefined', () => {
@@ -381,7 +381,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Update Blog Post “my-post”');
+      expect(message).toBe('Update Blog Post "my-post"');
     });
 
     it('should not apply [skip ci] to deleteMedia even if skip_ci is true', () => {
@@ -396,7 +396,7 @@ describe('git/shared/commits', () => {
         commitType: 'deleteMedia',
       });
 
-      expect(message).toBe('Delete “static/images/photo.jpg”');
+      expect(message).toBe('Delete "static/images/photo.jpg"');
     });
 
     it('should not apply [skip ci] to delete even if skip_ci is true', () => {
@@ -410,7 +410,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Delete Blog Post “my-post”');
+      expect(message).toBe('Delete Blog Post "my-post"');
     });
 
     it('should not add skip ci when skipCI is explicitly false', () => {
@@ -426,7 +426,7 @@ describe('git/shared/commits', () => {
         skipCI: false,
       });
 
-      expect(message).toBe('Update Blog Post “my-post”');
+      expect(message).toBe('Update Blog Post "my-post"');
     });
 
     it('should not add skip ci when autoDeploy is true', () => {
@@ -441,7 +441,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Update Blog Post “my-post”');
+      expect(message).toBe('Update Blog Post "my-post"');
     });
 
     it('should handle null collection gracefully', () => {
@@ -450,7 +450,7 @@ describe('git/shared/commits', () => {
         collection: null,
       });
 
-      expect(message).toBe('Create  “my-post”');
+      expect(message).toBe('Create  "my-post"');
     });
 
     it('should handle undefined collection gracefully', () => {
@@ -459,7 +459,7 @@ describe('git/shared/commits', () => {
         // collection is undefined
       });
 
-      expect(message).toBe('Update  “my-post”');
+      expect(message).toBe('Update  "my-post"');
     });
 
     it('should handle unknown commit type gracefully', () => {
@@ -497,7 +497,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('[skip ci] Create Blog Post “my-post”');
+      expect(message).toBe('[skip ci] Create Blog Post "my-post"');
     });
 
     it('should replace {{author-login}} placeholder in create message', () => {

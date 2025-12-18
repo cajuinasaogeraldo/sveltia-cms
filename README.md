@@ -147,7 +147,7 @@ Sveltia CMS is the only project that doesn’t inherit the complexity, technical
 - We closely monitor and analyze the predecessor’s issue tracker
 - We rearchitect the entire user experience (UX) and developer experience (DX)
 
-This “total reboot” has enabled us to implement hundreds of improvements without getting stuck in a legacy system. Furthermore:
+This "total reboot” has enabled us to implement hundreds of improvements without getting stuck in a legacy system. Furthermore:
 
 - We dedicate significant time and effort to modernizing the platform
 - We continue to address [issues](https://github.com/decaporg/decap-cms/issues) reported in the predecessor’s repository
@@ -1010,7 +1010,7 @@ Limitation: YAML anchors, aliases and merge keys only work if they are in the sa
 
 ### Working around an authentication error
 
-If you get an “Authentication Aborted” error when trying to sign in to GitHub, GitLab or Gitea/Forgejo using the authorization code flow, you may need to check your site’s [`Cross-Origin-Opener-Policy`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy). The COOP header is not widely used, but it’s known to break the OAuth flow with a popup window. If that’s your case, changing `same-origin` to `same-origin-allow-popups` solves the problem. ([Discussion](https://github.com/sveltia/sveltia-cms/issues/131))
+If you get an "Authentication Aborted” error when trying to sign in to GitHub, GitLab or Gitea/Forgejo using the authorization code flow, you may need to check your site’s [`Cross-Origin-Opener-Policy`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy). The COOP header is not widely used, but it’s known to break the OAuth flow with a popup window. If that’s your case, changing `same-origin` to `same-origin-allow-popups` solves the problem. ([Discussion](https://github.com/sveltia/sveltia-cms/issues/131))
 
 ### Working with a local Git repository
 
@@ -1026,9 +1026,9 @@ Here are the workflow steps and tips:
    - The `127.0.0.1` addresses can also be used instead of `localhost`.
    - If your CMS instance is not located under `/admin/`, use the appropriate path.
    - Other Chromium-based browsers may also work. Brave user? [See below](#enabling-local-development-in-brave).
-1. Click “Work with Local Repository” and select the project’s root directory once prompted.
-   - If you get an error saying “not a repository root directory”, make sure you’ve turned the folder into a repository with either a CUI ([`git init`](https://github.com/git-guides/git-init)) or GUI, and the hidden `.git` folder exists.
-   - If you’re using Windows Subsystem for Linux (WSL), you may get an error saying “Can’t open this folder because it contains system files.” This is due to a limitation in the browser, and you can try some workarounds mentioned in [this issue](https://github.com/coder/code-server/issues/4646) and [this thread](https://github.com/sveltia/sveltia-cms/discussions/101).
+1. Click "Work with Local Repository” and select the project’s root directory once prompted.
+   - If you get an error saying "not a repository root directory”, make sure you’ve turned the folder into a repository with either a CUI ([`git init`](https://github.com/git-guides/git-init)) or GUI, and the hidden `.git` folder exists.
+   - If you’re using Windows Subsystem for Linux (WSL), you may get an error saying "Can’t open this folder because it contains system files.” This is due to a limitation in the browser, and you can try some workarounds mentioned in [this issue](https://github.com/coder/code-server/issues/4646) and [this thread](https://github.com/sveltia/sveltia-cms/discussions/101).
 1. Edit your content normally using the CMS. All changes are made to local files.
 1. Use `git diff` or a GUI like [GitHub Desktop](https://desktop.github.com/) to see if the produced changes look good.
    - GitHub Desktop can be used for any repository, not just GitHub-hosted ones.
@@ -2384,13 +2384,13 @@ Sveltia CMS is not a service but a client-side application that runs in your web
 
 Depending on your CMS configuration, you will need to use an OAuth application hosted by yourself or a third party, such as Netlify or Cloudflare, to retrieve an access token from GitHub. Alternatively, you can provide an access token directly on the CMS’s sign-in page. In any case, your token is stored in your browser’s local storage, and subsequent API requests are made directly between your browser and the Git hosting provider.
 
-The CMS also integrates with various third-party services, including stock photo providers and translation services. These are “bring your own key” (BYOK) features that are entirely optional. You provide your own API keys for these services, which are stored in your browser’s local storage, and API requests are then made directly between your browser and the relevant service providers.
+The CMS also integrates with various third-party services, including stock photo providers and translation services. These are "bring your own key” (BYOK) features that are entirely optional. You provide your own API keys for these services, which are stored in your browser’s local storage, and API requests are then made directly between your browser and the relevant service providers.
 
 As we don’t collect any analytics data either, we don’t have a privacy policy. For third-party services, please refer to their respective privacy policies.
 
 ## Disclaimer
 
-This software is provided “as is” without any express or implied warranty. We are not obligated to provide any support for the application. This product is not affiliated with or endorsed by Netlify, Decap CMS or any other integrated services. All product names, logos, and brands are the property of their respective owners.
+This software is provided "as is” without any express or implied warranty. We are not obligated to provide any support for the application. This product is not affiliated with or endorsed by Netlify, Decap CMS or any other integrated services. All product names, logos, and brands are the property of their respective owners.
 
 ## Acknowledgements
 
