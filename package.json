@@ -15,9 +15,10 @@
   "scripts": {
     "build": "vite build",
     "build:watch": "vite build --watch",
+    "pre-release":"node scripts/prepare-release.js",
+    "release":"node scripts/release.js",
     "check": "pnpm run '/^check:.*/'",
     "check:audit": "pnpm audit",
-    "check:cspell": "cspell --no-progress",
     "check:eslint": "eslint .",
     "check:imports": "node scripts/find-unused-imports.js",
     "check:oxlint": "oxlint .",
