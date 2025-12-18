@@ -103,6 +103,6 @@
   "publishConfig": {
     "directory": "package",
     "access": "public",
-    "provenance": true
+    "provenance": false
   }
 }
