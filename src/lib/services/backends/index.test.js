@@ -1,10 +1,6 @@
 import { get } from 'svelte/store';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('$lib/services/contents/workflow/actions', () => ({
-  initEditorialWorkflow: vi.fn(),
-}));
-
 import {
   allBackendServices,
   backend,
@@ -13,6 +9,10 @@ import {
   isLastCommitPublished,
   validBackendNames,
 } from './index.js';
+
+vi.mock('$lib/services/contents/workflow/actions', () => ({
+  initEditorialWorkflow: vi.fn(),
+}));
 
 describe('Backend Services Index', () => {
   beforeEach(() => {

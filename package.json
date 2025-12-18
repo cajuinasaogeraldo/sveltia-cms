@@ -1,6 +1,6 @@
 {
   "name": "@cajuinasi/sveltia-cms",
-  "version": "0.124.2",
+  "version": "0.124.5",
   "description": "Sveltia CMS is a modern, lightweight, Git-based headless content management system.",
   "keywords": [
     "cms",
@@ -17,7 +17,6 @@
     "build:watch": "vite build --watch",
     "check": "pnpm run '/^check:.*/'",
     "check:audit": "pnpm audit",
-    "check:cspell": "cspell --no-progress",
     "check:eslint": "eslint .",
     "check:imports": "node scripts/find-unused-imports.js",
     "check:oxlint": "oxlint .",
@@ -26,8 +25,10 @@
     "check:svelte": "svelte-check",
     "dev": "vite",
     "format": "prettier --write .",
+    "pre-release": "node scripts/prepare-release.js",
     "prepublishOnly": "vite build",
     "preview": "vite preview",
+    "release": "node scripts/release.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest"
