@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockLocaleModules = {
   '$lib/locales/en.js': { strings: { hello: 'Hello', world: 'World' } },
   '$lib/locales/ja.js': { strings: { hello: 'こんにちは', world: '世界' } },
+  '$lib/locales/pt-br.js': { strings: { hello: 'Olá', world: 'Mundo' } },
 };
 
 // Mock all dependencies first
@@ -37,6 +38,7 @@ vi.mock('$lib/services/user/prefs', () => ({
 // Mock import.meta.glob by using dynamic import mocking
 vi.doMock('$lib/locales/en.js', () => mockLocaleModules['$lib/locales/en.js']);
 vi.doMock('$lib/locales/ja.js', () => mockLocaleModules['$lib/locales/ja.js']);
+vi.doMock('$lib/locales/pt-br.js', () => mockLocaleModules['$lib/locales/pt-br.js']);
 
 describe('i18n', () => {
   beforeEach(() => {
@@ -63,9 +65,10 @@ describe('i18n', () => {
 
       initAppLocale();
 
-      expect(mockAddMessages).toHaveBeenCalledTimes(2);
+      expect(mockAddMessages).toHaveBeenCalledTimes(3);
       expect(mockAddMessages).toHaveBeenCalledWith('en', { hello: 'Hello', world: 'World' });
       expect(mockAddMessages).toHaveBeenCalledWith('ja', { hello: 'こんにちは', world: '世界' });
+      expect(mockAddMessages).toHaveBeenCalledWith('pt-br', { hello: 'Olá', world: 'Mundo' });
 
       expect(mockInitLocales).toHaveBeenCalledWith({
         fallbackLocale: 'en',
