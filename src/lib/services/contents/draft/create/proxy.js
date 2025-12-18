@@ -55,7 +55,7 @@ export const copyDefaultLocaleValue = ({ getFieldArgs, fieldConfig, sourceLangua
 
 /**
  * Create a Proxy that automatically copies a field value to other locale if the field’s i18n
- * strategy is “duplicate.”.
+ * strategy is "duplicate.".
  * @param {object} args Arguments.
  * @param {EntryDraft | any} args.draft Entry draft.
  * @param {string} args.locale Source locale.

@@ -4,6 +4,7 @@
 
   import { goto, selectedPageName } from '$lib/services/app/navigation';
   import { selectedAssetFolder } from '$lib/services/assets/folders';
+  import { isEditorialWorkflow } from '$lib/services/contents/workflow';
   import { isSmallScreen } from '$lib/services/user/env';
 
   const pages = $derived([
@@ -19,12 +20,16 @@
       icon: 'photo_library',
       link: $isSmallScreen ? '/assets' : `/assets/${$selectedAssetFolder?.internalPath ?? '-/all'}`,
     },
-    // {
-    //   key: 'workflow',
-    //   label: $_('editorial_workflow'),
-    //   icon: 'rebase_edit',
-    //   link: '/workflow',
-    // },
+    ...($isEditorialWorkflow
+      ? [
+          {
+            key: 'workflow',
+            label: $_('editorial_workflow'),
+            icon: 'rebase_edit',
+            link: '/workflow',
+          },
+        ]
+      : []),
     // {
     //   key: 'config',
     //   label: $_('cms_config'),

@@ -17,8 +17,8 @@ import { createTransformer } from '$lib/services/contents/fields/rich-text/compo
  */
 
 /**
- * Cache the class and related features to avoid a Lexical error saying “Type ... In node CustomNode
- * does not match registered node CustomNode with the same type”.
+ * Cache the class and related features to avoid a Lexical error saying "Type ... In node CustomNode
+ * does not match registered node CustomNode with the same type".
  * @type {Map<string, LexicalNodeFeatures>}
  */
 export const featureCacheMap = new Map();

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createCommitMessage } from './commits';
+import { createCommitMessage, createWorkflowMessage } from './commits';
 
 // Mock the get function from svelte/store
 const mockCmsConfig = {
@@ -37,6 +37,9 @@ vi.mock('$lib/services/config', () => ({
 }));
 
 vi.mock('$lib/services/contents/collection', () => ({
+  getCollection: vi.fn((name) =>
+    name ? { name, label: 'Blog Post', label_singular: 'Blog Post' } : undefined,
+  ),
   getCollectionLabel: vi.fn(() => 'Blog Post'),
 }));
 
@@ -76,7 +79,7 @@ describe('git/shared/commits', () => {
       const options = { commitType: 'create', collection: mockCollection };
       const message = createCommitMessage(changes, options);
 
-      expect(message).toBe('Create Blog Post “my-post”');
+      expect(message).toBe('Create Blog Post "my-post"');
     });
 
     it('should create default update message', () => {
@@ -85,7 +88,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Update Blog Post “my-post”');
+      expect(message).toBe('Update Blog Post "my-post"');
     });
 
     it('should create default delete message', () => {
@@ -94,7 +97,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Delete Blog Post “my-post”');
+      expect(message).toBe('Delete Blog Post "my-post"');
     });
 
     it('should create default uploadMedia message', () => {
@@ -108,7 +111,7 @@ describe('git/shared/commits', () => {
         commitType: 'uploadMedia',
       });
 
-      expect(message).toBe('Upload “static/images/photo.jpg”');
+      expect(message).toBe('Upload "static/images/photo.jpg"');
     });
 
     it('should create uploadMedia message with multiple files', () => {
@@ -122,7 +125,7 @@ describe('git/shared/commits', () => {
         commitType: 'uploadMedia',
       });
 
-      expect(message).toBe('Upload “static/images/photo1.jpg” +2');
+      expect(message).toBe('Upload "static/images/photo1.jpg" +2');
     });
 
     it('should add [skip ci] prefix when automatic deployments are disabled', () => {
@@ -133,7 +136,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('[skip ci] Create Blog Post “my-post”');
+      expect(message).toBe('[skip ci] Create Blog Post "my-post"');
     });
 
     it('should not add [skip ci] prefix for delete operations', () => {
@@ -144,7 +147,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Delete Blog Post “my-post”');
+      expect(message).toBe('Delete Blog Post "my-post"');
     });
 
     it('should handle empty user data gracefully', () => {
@@ -156,7 +159,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Create Blog Post “my-post”');
+      expect(message).toBe('Create Blog Post "my-post"');
     });
 
     it('should handle openAuthoring commit type', () => {
@@ -186,7 +189,7 @@ describe('git/shared/commits', () => {
         commitType: 'deleteMedia',
       });
 
-      expect(message).toBe('Delete “static/images/photo.jpg”');
+      expect(message).toBe('Delete "static/images/photo.jpg"');
     });
 
     it('should add [skip ci] prefix for deleteMedia when skipCI param is true', () => {
@@ -199,7 +202,7 @@ describe('git/shared/commits', () => {
         skipCI: true,
       });
 
-      expect(message).toBe('Delete “static/images/photo.jpg”');
+      expect(message).toBe('Delete "static/images/photo.jpg"');
     });
 
     it('should use custom commit messages when provided', () => {
@@ -266,7 +269,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('[skip ci] Update Blog Post “my-post”');
+      expect(message).toBe('[skip ci] Update Blog Post "my-post"');
     });
 
     it('should use skipCI parameter to override config', () => {
@@ -282,7 +285,7 @@ describe('git/shared/commits', () => {
         skipCI: true,
       });
 
-      expect(message).toBe('[skip ci] Update Blog Post “my-post”');
+      expect(message).toBe('[skip ci] Update Blog Post "my-post"');
     });
 
     it('should handle changes with no slug', () => {
@@ -293,7 +296,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Update Blog Post “”');
+      expect(message).toBe('Update Blog Post ""');
     });
 
     it('should use first slug from multiple changes', () => {
@@ -307,7 +310,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Update Blog Post “first-post”');
+      expect(message).toBe('Update Blog Post "first-post"');
     });
 
     it('should handle deleteMedia with multiple files', () => {
@@ -326,7 +329,7 @@ describe('git/shared/commits', () => {
         commitType: 'deleteMedia',
       });
 
-      expect(message).toBe('Delete “static/images/photo1.jpg” +2');
+      expect(message).toBe('Delete "static/images/photo1.jpg" +2');
     });
 
     it('should handle openAuthoring without collection', () => {
@@ -363,7 +366,7 @@ describe('git/shared/commits', () => {
         skipCI: false,
       });
 
-      expect(message).toBe('Update Blog Post “my-post”');
+      expect(message).toBe('Update Blog Post "my-post"');
     });
 
     it('should not apply [skip ci] when automatic_deployments is true and skip_ci is undefined', () => {
@@ -378,7 +381,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Update Blog Post “my-post”');
+      expect(message).toBe('Update Blog Post "my-post"');
     });
 
     it('should not apply [skip ci] to deleteMedia even if skip_ci is true', () => {
@@ -393,7 +396,7 @@ describe('git/shared/commits', () => {
         commitType: 'deleteMedia',
       });
 
-      expect(message).toBe('Delete “static/images/photo.jpg”');
+      expect(message).toBe('Delete "static/images/photo.jpg"');
     });
 
     it('should not apply [skip ci] to delete even if skip_ci is true', () => {
@@ -407,7 +410,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Delete Blog Post “my-post”');
+      expect(message).toBe('Delete Blog Post "my-post"');
     });
 
     it('should not add skip ci when skipCI is explicitly false', () => {
@@ -423,7 +426,7 @@ describe('git/shared/commits', () => {
         skipCI: false,
       });
 
-      expect(message).toBe('Update Blog Post “my-post”');
+      expect(message).toBe('Update Blog Post "my-post"');
     });
 
     it('should not add skip ci when autoDeploy is true', () => {
@@ -438,7 +441,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('Update Blog Post “my-post”');
+      expect(message).toBe('Update Blog Post "my-post"');
     });
 
     it('should handle null collection gracefully', () => {
@@ -447,7 +450,7 @@ describe('git/shared/commits', () => {
         collection: null,
       });
 
-      expect(message).toBe('Create  “my-post”');
+      expect(message).toBe('Create  "my-post"');
     });
 
     it('should handle undefined collection gracefully', () => {
@@ -456,7 +459,7 @@ describe('git/shared/commits', () => {
         // collection is undefined
       });
 
-      expect(message).toBe('Update  “my-post”');
+      expect(message).toBe('Update  "my-post"');
     });
 
     it('should handle unknown commit type gracefully', () => {
@@ -494,7 +497,7 @@ describe('git/shared/commits', () => {
         collection: mockCollection,
       });
 
-      expect(message).toBe('[skip ci] Create Blog Post “my-post”');
+      expect(message).toBe('[skip ci] Create Blog Post "my-post"');
     });
 
     it('should replace {{author-login}} placeholder in create message', () => {
@@ -643,6 +646,130 @@ describe('git/shared/commits', () => {
       });
 
       expect(message).toBe('[skip ci] Create Blog Post "my-post" by test@example.com');
+    });
+  });
+
+  describe('createWorkflowMessage', () => {
+    it('should create default workflowPublish message', () => {
+      const message = createWorkflowMessage('workflowPublish', {
+        collection: 'blog',
+        slug: 'my-post',
+        title: 'My Post',
+      });
+
+      expect(message).toBe('Publish Blog Post "my-post"');
+    });
+
+    it('should create default workflowPrTitle message', () => {
+      const message = createWorkflowMessage('workflowPrTitle', {
+        collection: 'blog',
+        slug: 'my-post',
+        title: 'My Awesome Post',
+      });
+
+      expect(message).toBe('Editorial Workflow: My Awesome Post');
+    });
+
+    it('should create default workflowPrBody message', () => {
+      const message = createWorkflowMessage('workflowPrBody', {
+        collection: 'blog',
+        slug: 'my-post',
+        title: 'My Post',
+      });
+
+      expect(message).toBe('Creating entry: Blog Post/my-post');
+    });
+
+    it('should use slug as fallback when title is missing', () => {
+      const message = createWorkflowMessage('workflowPrTitle', {
+        collection: 'blog',
+        slug: 'my-post',
+      });
+
+      expect(message).toBe('Editorial Workflow: my-post');
+    });
+
+    it('should use custom workflowPublish message when configured', () => {
+      mockCmsConfig.backend = {
+        commit_messages: {
+          workflowPublish: '[cms] Publish {{collection}} "{{slug}}" by {{author-login}}',
+        },
+        skip_ci: false,
+      };
+
+      const message = createWorkflowMessage('workflowPublish', {
+        collection: 'blog',
+        slug: 'my-post',
+        title: 'My Post',
+      });
+
+      expect(message).toBe('[cms] Publish Blog Post "my-post" by test-user');
+    });
+
+    it('should use custom workflowPrTitle message when configured', () => {
+      mockCmsConfig.backend = {
+        commit_messages: {
+          workflowPrTitle: 'New Entry: {{title}} ({{collection}})',
+        },
+        skip_ci: false,
+      };
+
+      const message = createWorkflowMessage('workflowPrTitle', {
+        collection: 'blog',
+        slug: 'my-post',
+        title: 'Amazing Article',
+      });
+
+      expect(message).toBe('New Entry: Amazing Article (Blog Post)');
+    });
+
+    it('should use custom workflowPrBody message when configured', () => {
+      mockCmsConfig.backend = {
+        commit_messages: {
+          workflowPrBody: 'New {{collection}} entry: {{slug}} by {{author-name}}',
+        },
+        skip_ci: false,
+      };
+
+      const message = createWorkflowMessage('workflowPrBody', {
+        collection: 'blog',
+        slug: 'my-post',
+        title: 'My Post',
+      });
+
+      expect(message).toBe('New Blog Post entry: my-post by Test User');
+    });
+
+    it('should replace all author placeholders', () => {
+      mockUser.email = 'test@example.com';
+      mockUser.login = 'testuser';
+      mockUser.name = 'Test User';
+
+      mockCmsConfig.backend = {
+        commit_messages: {
+          workflowPublish: 'Publish by {{author-name}} ({{author-login}}) <{{author-email}}>',
+        },
+        skip_ci: false,
+      };
+
+      const message = createWorkflowMessage('workflowPublish', {
+        collection: 'blog',
+        slug: 'my-post',
+        title: 'My Post',
+      });
+
+      expect(message).toBe('Publish by Test User (testuser) <test@example.com>');
+    });
+
+    it('should handle empty title gracefully', () => {
+      const message = createWorkflowMessage('workflowPrTitle', {
+        collection: 'blog',
+        slug: 'untitled-post',
+        title: '',
+      });
+
+      // Empty title should fallback to slug
+      expect(message).toBe('Editorial Workflow: untitled-post');
     });
   });
 });

@@ -1113,4 +1113,67 @@
  * `unsupported_deprecated_option`.
  */
 
+/**
+ * Workflow status for editorial workflow.
+ * @typedef {'draft' | 'pending_review' | 'pending_publish'} WorkflowStatus
+ */
+
+/**
+ * Preview status for editorial workflow entries.
+ * @typedef {'idle' | 'building' | 'ready' | 'error'} PreviewStatus
+ */
+
+/**
+ * Unpublished entry for editorial workflow.
+ * @typedef {object} UnpublishedEntry
+ * @property {string} slug Entry slug.
+ * @property {string} collection Collection name.
+ * @property {WorkflowStatus} status Current workflow status.
+ * @property {Record<string, any>} data Entry data/content.
+ * @property {string} [title] Entry title for display.
+ * @property {number} [prNumber] Pull request number. GitHub backend only.
+ * @property {string} [prUrl] Pull request URL. GitHub backend only.
+ * @property {string} [branch] Branch name for the PR.
+ * @property {string} [headSha] Latest commit SHA on the PR branch.
+ * @property {boolean} [isFetching] Whether the entry is being fetched.
+ * @property {boolean} [isPersisting] Whether the entry is being saved.
+ * @property {boolean} [isUpdatingStatus] Whether the status is being updated.
+ * @property {boolean} [isPublishing] Whether the entry is being published.
+ * @property {boolean} [isDeleting] Whether the entry is being deleted.
+ * @property {PreviewStatus} [previewStatus] Current preview build status.
+ * @property {string} [previewUrl] URL to view the preview.
+ * @property {boolean} [isBuildingPreview] Whether preview is being built.
+ * @property {number} [workflowRunId] GitHub Actions workflow run ID for tracking.
+ * @property {string} [previewForSha] SHA of the commit the preview was built for.
+ * @property {Date} [updatedAt] Last update time.
+ * @property {string} [author] Author of the entry.
+ */
+
+/**
+ * Options for creating a pull request.
+ * @typedef {object} CreatePROptions
+ * @property {string} title PR title.
+ * @property {string} body PR description.
+ * @property {string} head Head branch name.
+ * @property {string} base Base branch name.
+ * @property {string[]} [labels] Labels to add.
+ */
+
+/**
+ * Pull request information from GitHub API.
+ * @typedef {object} PullRequestInfo
+ * @property {number} number PR number.
+ * @property {string} title PR title.
+ * @property {string} body PR description.
+ * @property {string} state PR state (open, closed, merged).
+ * @property {string} url PR URL.
+ * @property {string} headBranch Head branch name.
+ * @property {string} [headSha] SHA of the head commit.
+ * @property {string} baseBranch Base branch name.
+ * @property {string[]} labels Label names.
+ * @property {Date} createdAt Creation time.
+ * @property {Date} updatedAt Last update time.
+ * @property {string} [author] Author login.
+ */
+
 export {};

@@ -37,6 +37,8 @@ export const strings = {
   delete: '削除',
   save: '保存',
   saving: '保存中…',
+  save_draft: '下書きを保存',
+  saving_draft: '下書きを保存中…',
   rename: '名前を変更',
   update: '更新',
   replace: '差し替え',
@@ -739,10 +741,18 @@ export const strings = {
 
   // Editorial Workflow
   status: {
+    draft: '下書き',
     drafts: '下書き',
     in_review: 'レビュー中',
+    pending_review: 'レビュー中',
+    pending_publish: '公開可',
     ready: '公開可',
   },
+  editing_workflow_entry: '下書きPRを編集中',
+  workflow_branch: 'ワークフローブランチ',
+  status_change_failed: 'ステータスの変更に失敗しました',
+  drag_to_change_status: 'ドラッグしてステータス変更',
+  drop_entry_here: 'ここにドロップ',
 
   // Settings
   categories: 'カテゴリ',

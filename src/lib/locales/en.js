@@ -37,6 +37,8 @@ export const strings = {
   delete: 'Delete',
   save: 'Save',
   saving: 'Saving…',
+  save_draft: 'Save Draft',
+  saving_draft: 'Saving Draft…',
   rename: 'Rename',
   update: 'Update',
   replace: 'Replace',
@@ -86,7 +88,7 @@ export const strings = {
   signing_in: 'Signing in…',
   work_with_local_repo: 'Work with Local Repository',
   work_with_local_repo_description:
-    'Once prompted, select the root directory of the “{repo}” repository.',
+    'Once prompted, select the root directory of the "{repo}" repository.',
   work_with_local_repo_description_no_repo:
     'Once prompted, select the root directory of your Git repository.',
   work_with_test_repo: 'Work with Test Repository',
@@ -108,10 +110,10 @@ export const strings = {
     MALFORMED_RESPONSE: 'Server responded with malformed data. Please try again later.',
   },
   backend_unsupported_version: 'The {name} backend requires {name} {version} or later.',
-  repository_no_access: 'You don’t have access to the “{repo}” repository.',
-  repository_not_found: 'The “{repo}” repository doesn’t exist.',
-  repository_empty: 'The “{repo}” repository has no branches.',
-  branch_not_found: 'The “{repo}” repository doesn’t have the “{branch}” branch.',
+  repository_no_access: 'You don’t have access to the "{repo}" repository.',
+  repository_not_found: 'The "{repo}" repository doesn’t exist.',
+  repository_empty: 'The "{repo}" repository has no branches.',
+  branch_not_found: 'The "{repo}" repository doesn’t have the "{branch}" branch.',
   unexpected_error: 'Unexpected Error',
 
   // Parser errors
@@ -177,23 +179,23 @@ export const strings = {
   entry_list: 'Entry List',
   file_list: 'File List',
   asset_list: 'Asset List',
-  x_collection: '“{collection}” Collection',
-  x_asset_folder: '“{folder}” Asset Folder',
+  x_collection: '"{collection}" Collection',
+  x_asset_folder: '"{folder}" Asset Folder',
   viewing_collection_list: 'You’re now viewing the collection list.',
   viewing_asset_folder_list: 'You’re now viewing the asset folder list.',
   viewing_x_collection_many_entries:
-    'You’re now viewing the “{collection}” collection, which has {count} entries.',
+    'You’re now viewing the "{collection}" collection, which has {count} entries.',
   viewing_x_collection_one_entry:
-    'You’re now viewing the “{collection}” collection, which has one entry.',
+    'You’re now viewing the "{collection}" collection, which has one entry.',
   viewing_x_collection_no_entries:
-    'You’re now viewing the “{collection}” collection, which has no entries yet.',
+    'You’re now viewing the "{collection}" collection, which has no entries yet.',
   viewing_x_asset_folder_many_assets:
-    'You’re now viewing the “{folder}” asset folder, which has {count} assets.',
+    'You’re now viewing the "{folder}" asset folder, which has {count} assets.',
   viewing_x_asset_folder_one_asset:
-    'You’re now viewing the “{folder}” asset folder, which has one asset.',
+    'You’re now viewing the "{folder}" asset folder, which has one asset.',
   viewing_x_asset_folder_no_assets:
-    'You’re now viewing the “{folder}” asset folder, which has no assets yet.',
-  singleton_selected_announcement: 'Press Enter to edit the “{file}” file.',
+    'You’re now viewing the "{folder}" asset folder, which has no assets yet.',
+  singleton_selected_announcement: 'Press Enter to edit the "{file}" file.',
   collection_not_found: 'Collection not found',
   file_not_found: 'File not found.',
   x_of_x_selected: '{selected} of {total} selected',
@@ -243,11 +245,11 @@ export const strings = {
   asset_folder_list: 'Asset Folder List',
   back_to_asset_folder_list: 'Back to Asset Folder List',
   search_results: 'Search Results',
-  search_results_for_x: 'Search Results for “{terms}”',
+  search_results_for_x: 'Search Results for "{terms}"',
   viewing_entry_search_results:
-    'You’re now viewing search results for “{terms}”. We’ve found {entries}.',
+    'You’re now viewing search results for "{terms}". We’ve found {entries}.',
   viewing_asset_search_results:
-    'You’re now viewing search results for “{terms}”. We’ve found {assets}.',
+    'You’re now viewing search results for "{terms}". We’ve found {assets}.',
   many_entries: '{count} entries',
   one_entry: 'one entry',
   no_entries: 'no entries',
@@ -317,10 +319,10 @@ export const strings = {
   processing_file: 'Processing a file. This may take a while.',
   processing_files: 'Processing files. This may take a while.',
   uploading_files: 'Uploading Files',
-  confirm_replacing_file: 'Are you sure to replace “{name}” with the following file?',
-  confirm_uploading_file: 'Are you sure to save the following file to the “{folder}” folder?',
+  confirm_replacing_file: 'Are you sure to replace "{name}" with the following file?',
+  confirm_uploading_file: 'Are you sure to save the following file to the "{folder}" folder?',
   confirm_uploading_files:
-    'Are you sure to save the following {count} files to the “{folder}” folder?',
+    'Are you sure to save the following {count} files to the "{folder}" folder?',
   oversized_files: 'Oversized Files',
   warning_oversized_file:
     'This file cannot be uploaded because it exceeds the maximum size of {size}. Please reduce the size or select a different file.',
@@ -375,12 +377,12 @@ export const strings = {
   draft_backup_deleted: 'Draft backup has been deleted.',
   cancel_editing: 'Cancel Editing',
   create_entry_title: 'Creating {name}',
-  create_entry_announcement: 'You’re now creating a new entry in the “{collection}” collection.',
+  create_entry_announcement: 'You’re now creating a new entry in the "{collection}" collection.',
   edit_entry_title: '{collection} › {entry}',
   edit_entry_announcement:
-    'You’re now editing the “{entry}” entry in the “{collection}” collection.',
-  edit_file_announcement: 'You’re now editing the “{file}” file in the “{collection}” collection.',
-  edit_singleton_announcement: 'You’re now editing the “{file}” file.',
+    'You’re now editing the "{entry}" entry in the "{collection}" collection.',
+  edit_file_announcement: 'You’re now editing the "{file}" file in the "{collection}" collection.',
+  edit_singleton_announcement: 'You’re now editing the "{file}" file.',
   save_and_publish: 'Save and Publish',
   save_without_publishing: 'Save without Publishing',
   show_editor_options: 'Show Editor Options',
@@ -397,7 +399,7 @@ export const strings = {
   content_preview: 'Content Preview',
   show_content_options_x_locale: 'Show {locale} Content Options',
   content_options_x_locale: '{locale} Content Options',
-  x_field: '“{field}” Field',
+  x_field: '"{field}" Field',
   show_field_options: 'Show Field Options',
   field_options: 'Field Options',
   unsupported_field_type_x: 'Unsupported field type: {name}',
@@ -484,7 +486,7 @@ export const strings = {
   },
 
   // Media details
-  viewing_x_asset_details: 'You’re viewing the details of the “{name}” asset.',
+  viewing_x_asset_details: 'You’re viewing the details of the "{name}" asset.',
   asset_editor: 'Asset Editor',
   preview_unavailable: 'Preview Unavailable.',
   public_url: 'Public URL',
@@ -651,17 +653,17 @@ export const strings = {
       no_collection: 'Collections are not defined.',
       missing_backend: 'The backend is not defined.',
       missing_backend_name: 'The backend name is not defined.',
-      unsupported_backend: 'The configured “{name}” backend is not supported.',
+      unsupported_backend: 'The configured "{name}" backend is not supported.',
       missing_repository: 'The repository is not defined.',
       invalid_repository:
-        'The configured repository is invalid. It must be in “owner/repo” format.',
+        'The configured repository is invalid. It must be in "owner/repo" format.',
       oauth_implicit_flow: 'The configured authentication method (implicit flow) is not supported.',
       oauth_no_app_id: 'OAuth application ID is not defined.',
       missing_media_folder: 'The media folder is not defined.',
       invalid_media_folder: 'The configured media folder is invalid. It must be a string.',
       invalid_public_folder: 'The configured public folder is invalid. It must be a string.',
       public_folder_relative_path:
-        'The configured public folder is invalid. It must be an absolute path starting with “/”.',
+        'The configured public folder is invalid. It must be an absolute path starting with "/".',
       public_folder_absolute_url: 'An absolute URL for the public folder option is not supported.',
       invalid_collection_no_options:
         'The collection must have either the `folder`, `files` or `divider` option defined.',
@@ -716,8 +718,9 @@ export const strings = {
       unexpected: 'Unexpected error',
     },
     warning: {
-      editorial_workflow_unsupported: 'Editorial workflow is not yet supported in Sveltia CMS.',
       open_authoring_unsupported: 'Open authoring is not yet supported in Sveltia CMS.',
+      editorial_workflow_github_only:
+        'Editorial workflow is currently only fully supported with GitHub backend.',
       nested_collections_unsupported: 'Nested collections are not yet supported in Sveltia CMS.',
       unsupported_ignored_option:
         'The `{prop}` option is not supported in Sveltia CMS. It will be ignored.',
@@ -734,10 +737,28 @@ export const strings = {
 
   // Editorial Workflow
   status: {
+    draft: 'Draft',
     drafts: 'Drafts',
     in_review: 'In Review',
+    pending_review: 'In Review',
+    pending_publish: 'Ready',
     ready: 'Ready',
   },
+  editing_workflow_entry: 'Editing Draft PR',
+  workflow_branch: 'Workflow Branch',
+  status_change_failed: 'Failed to change status',
+  drag_to_change_status: 'Drag to change status',
+  drop_entry_here: 'Drop entry here',
+  request_review: 'Request Review',
+  approve: 'Approve',
+  request_changes: 'Request Changes',
+  back_to_review: 'Back to Review',
+  confirm_publish: 'Publish "{title}"?',
+  confirm_delete_draft: 'Delete draft "{title}"?',
+  build_preview: 'Build Preview',
+  building_preview: 'Building...',
+  view_preview: 'View Preview',
+  preview_error: 'Preview Failed',
 
   // Settings
   categories: 'Categories',

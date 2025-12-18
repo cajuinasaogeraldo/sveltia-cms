@@ -5,6 +5,7 @@
     Button,
     ConfirmationDialog,
     Divider,
+    Icon,
     Menu,
     MenuButton,
     MenuItem,
@@ -37,6 +38,12 @@
   import { getEntrySummary } from '$lib/services/contents/entry/summary';
   import { getLocaleLabel } from '$lib/services/contents/i18n';
   import { DEFAULT_I18N_CONFIG } from '$lib/services/contents/i18n/config';
+  import {
+    clearWorkflowEditContext,
+    currentWorkflowBranch,
+    currentWorkflowEntry,
+  } from '$lib/services/contents/workflow';
+  import { isWorkflowEnabled } from '$lib/services/contents/workflow/actions';
   import { isMediumScreen, isSmallScreen } from '$lib/services/user/env';
   import { prefs } from '$lib/services/user/prefs';
 
@@ -64,6 +71,9 @@
   const notFound = $derived($entryDraft === undefined);
   const isNew = $derived($entryDraft?.isNew ?? true);
   const isIndexFile = $derived($entryDraft?.isIndexFile ?? false);
+  const isWorkflow = $derived(isWorkflowEnabled());
+  const workflowBranch = $derived($currentWorkflowBranch);
+  const workflowEntry = $derived($currentWorkflowEntry);
   const collection = $derived($entryDraft?.collection);
   const entryCollection = $derived(collection?._type === 'entry' ? collection : undefined);
   const collectionFile = $derived($entryDraft?.collectionFile);
@@ -103,6 +113,9 @@
    * Otherwise, go to the collection entries list.
    */
   const _goBack = () => {
+    // Clear workflow context when exiting editor
+    clearWorkflowEditContext();
+
     goBack(collectionName === '_singletons' ? '/collections' : `/collections/${collectionName}`);
   };
 
@@ -221,6 +234,15 @@
       </TruncatedText>
     {/if}
   </h2>
+  {#if workflowBranch && workflowEntry}
+    <div role="none" class="workflow-badge">
+      <Icon name="account_tree" />
+      <span class="branch-status">{$_(`status.${workflowEntry.status}`)}</span>
+      {#if workflowEntry.prNumber}
+        <span class="pr-number">#{workflowEntry.prNumber}</span>
+      {/if}
+    </div>
+  {/if}
   {#if !disabled && previewURL}
     <Button
       variant="tertiary"
@@ -291,7 +313,9 @@
   {#if $skipCIConfigured}
     <SplitButton
       variant="primary"
-      label={$_(saving ? 'saving' : 'save')}
+      label={$_(
+        saving ? (isWorkflow ? 'saving_draft' : 'saving') : isWorkflow ? 'save_draft' : 'save',
+      )}
       disabled={disabled || !modified || saving}
       keyShortcuts="Accel+S"
       onclick={() => {
@@ -313,7 +337,9 @@
   {:else}
     <Button
       variant="primary"
-      label={$_(saving ? 'saving' : 'save')}
+      label={$_(
+        saving ? (isWorkflow ? 'saving_draft' : 'saving') : isWorkflow ? 'save_draft' : 'save',
+      )}
       disabled={disabled || !modified || saving}
       keyShortcuts="Accel+S"
       onclick={() => {
@@ -384,6 +410,34 @@
 </AlertDialog>
 
 <style lang="scss">
+  .workflow-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 16px;
+    background-color: var(--sui-tertiary-background-color);
+    border: 1px solid var(--sui-warning-border-color);
+    font-size: var(--sui-font-size-small);
+    white-space: nowrap;
+
+    :global(svg) {
+      width: 16px;
+      height: 16px;
+      color: var(--sui-warning-foreground-color);
+    }
+
+    .branch-status {
+      font-weight: 600;
+      color: var(--sui-warning-foreground-color);
+    }
+
+    .pr-number {
+      color: var(--sui-secondary-foreground-color);
+      font-weight: 500;
+    }
+  }
+
   .error {
     margin-top: 8px;
     border-radius: var(--sui-control-medium-border-radius);

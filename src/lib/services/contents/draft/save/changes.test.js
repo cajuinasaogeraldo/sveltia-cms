@@ -14,7 +14,10 @@ vi.mock('@sveltia/utils/file');
 vi.mock('@sveltia/utils/object');
 vi.mock('@sveltia/utils/storage');
 vi.mock('$lib/services/assets/folders');
-vi.mock('$lib/services/backends');
+vi.mock('$lib/services/backends', () => ({
+  backend: { subscribe: vi.fn(() => vi.fn()) },
+  isLastCommitPublished: { subscribe: vi.fn(() => vi.fn()) },
+}));
 vi.mock('$lib/services/config');
 vi.mock('$lib/services/contents/draft/save/assets');
 vi.mock('$lib/services/contents/draft/save/entry-path');

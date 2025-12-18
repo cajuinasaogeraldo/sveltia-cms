@@ -12,6 +12,7 @@ import { getAllEntryFolders } from '$lib/services/config/folders/entries';
 import { fetchCmsConfig } from '$lib/services/config/loader';
 import { parseCmsConfig } from '$lib/services/config/parser';
 import { allEntryFolders } from '$lib/services/contents';
+import { initEditorialWorkflow } from '$lib/services/contents/workflow/actions';
 import { prefs } from '$lib/services/user/prefs';
 
 /**
@@ -163,6 +164,9 @@ cmsConfig.subscribe((config) => {
   if (!config) {
     return;
   }
+
+  // Initialize editorial workflow if enabled
+  initEditorialWorkflow();
 
   const _allEntryFolders = getAllEntryFolders(config);
   const _allAssetFolders = getAllAssetFolders(config, [...collectors.mediaFields]);

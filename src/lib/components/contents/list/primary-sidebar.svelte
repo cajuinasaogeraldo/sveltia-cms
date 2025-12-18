@@ -75,7 +75,7 @@
     {/if}
     {#if singletons.length}
       {#if $isSmallScreen || collections.length}
-        <!-- Use the user-friendly “Files” label instead of “Singletons” -->
+        <!-- Use the user-friendly "Files" label instead of "Singletons" -->
         <OptionGroup label={$_('files')}>
           {#each singletons as file, index (file.name ?? index)}
             {#await sleep() then}

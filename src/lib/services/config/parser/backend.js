@@ -29,8 +29,8 @@ const UNSUPPORTED_OPTIONS = [
  * @throws {Error} If there is an error in the backend config.
  */
 export const parseBackendConfig = (cmsConfig, collectors) => {
-  const { backend } = cmsConfig;
-  const { errors } = collectors;
+  const { backend, publish_mode } = cmsConfig;
+  const { errors, warnings } = collectors;
 
   if (!isObject(backend)) {
     errors.add(get(_)('config.error.missing_backend'));
@@ -50,6 +50,25 @@ export const parseBackendConfig = (cmsConfig, collectors) => {
     errors.add(get(_)('config.error.unsupported_backend', { values: { name } }));
 
     return;
+  }
+
+  // Validate editorial workflow requirements
+  if (publish_mode === 'editorial_workflow') {
+    if (!Object.keys(gitBackendServices).includes(name)) {
+      errors.add(
+        get(_)('config.error.editorial_workflow_requires_git', {
+          default: 'Editorial workflow requires a Git backend (GitHub, GitLab, or Gitea).',
+        }),
+      );
+    }
+
+    if (name !== 'github') {
+      warnings.add(
+        get(_)('config.warning.editorial_workflow_github_only', {
+          default: 'Editorial workflow is currently only fully supported with GitHub backend.',
+        }),
+      );
+    }
   }
 
   if (Object.keys(gitBackendServices).includes(name)) {

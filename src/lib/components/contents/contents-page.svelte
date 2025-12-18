@@ -1,6 +1,7 @@
 <script>
   import { Alert, Toast } from '@sveltia/ui';
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import { _, locale as appLocale } from 'svelte-i18n';
 
   import PageContainerMainArea from '$lib/components/common/page-container-main-area.svelte';
@@ -35,6 +36,12 @@
   import { createDraft } from '$lib/services/contents/draft/create';
   import { showContentOverlay } from '$lib/services/contents/editor';
   import { getEntrySummary } from '$lib/services/contents/entry/summary';
+  import {
+    currentWorkflowBranch,
+    currentWorkflowEntry,
+    WORKFLOW_STATUS,
+  } from '$lib/services/contents/workflow';
+  import { loadEntryFromWorkflowBranch } from '$lib/services/contents/workflow/load-entry';
   import { isSmallScreen } from '$lib/services/user/env';
 
   /**
@@ -167,17 +174,67 @@
       }
 
       if (routeType === 'entries' && subPath) {
-        const originalEntry = $listedEntries.find((entry) => entry.subPath === subPath);
+        const workflowBranch = get(currentWorkflowBranch);
+        const workflowEntry = get(currentWorkflowEntry);
 
-        if (originalEntry && $appLocale) {
-          createDraft({ collection, originalEntry });
+        // Check if editing is blocked for Ready status
+        if (workflowEntry && workflowEntry.status === WORKFLOW_STATUS.PENDING_PUBLISH) {
+          // eslint-disable-next-line no-console
+          console.warn('Cannot edit entries in Ready status');
+          goto('/workflow');
 
-          $announcedPageStatus = $_('edit_entry_announcement', {
-            values: {
-              collection: collectionLabel,
-              entry: getEntrySummary($selectedCollection, originalEntry),
-            },
-          });
+          return;
+        }
+
+        // If editing a workflow entry, load from PR branch
+        if (workflowBranch && workflowEntry) {
+          (async () => {
+            let originalEntry;
+
+            try {
+              originalEntry = await loadEntryFromWorkflowBranch(
+                collection.name,
+                workflowEntry.slug,
+              );
+
+              if (!originalEntry) {
+                // Entry doesn't exist yet in PR - create new draft
+                originalEntry = undefined;
+              }
+            } catch (/** @type {any} */ error) {
+              // eslint-disable-next-line no-console
+              console.error('Failed to load workflow entry:', error);
+              // Fall back to normal loading
+              originalEntry = $listedEntries.find((entry) => entry.subPath === subPath);
+            }
+
+            if ((originalEntry || workflowBranch) && $appLocale) {
+              createDraft({ collection, originalEntry });
+
+              $announcedPageStatus = $_('edit_entry_announcement', {
+                values: {
+                  collection: collectionLabel,
+                  entry: originalEntry
+                    ? getEntrySummary($selectedCollection, originalEntry)
+                    : workflowEntry?.title || subPath,
+                },
+              });
+            }
+          })();
+        } else {
+          // Normal loading from main branch
+          const originalEntry = $listedEntries.find((entry) => entry.subPath === subPath);
+
+          if (originalEntry && $appLocale) {
+            createDraft({ collection, originalEntry });
+
+            $announcedPageStatus = $_('edit_entry_announcement', {
+              values: {
+                collection: collectionLabel,
+                entry: getEntrySummary($selectedCollection, originalEntry),
+              },
+            });
+          }
         }
       }
     }

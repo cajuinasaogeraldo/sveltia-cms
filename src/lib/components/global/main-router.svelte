@@ -15,6 +15,7 @@
   import MobileSignInDialog from '$lib/components/menu/mobile-sign-in-dialog.svelte';
   import SearchPage from '$lib/components/search/search-page.svelte';
   import SettingsPage from '$lib/components/settings/settings-page.svelte';
+  import WorkflowEditorPage from '$lib/components/workflow/workflow-editor-page.svelte';
   import WorkflowPage from '$lib/components/workflow/workflow-page.svelte';
   import { parseLocation, selectedPageName } from '$lib/services/app/navigation';
   import { canShowMobileSignInDialog } from '$lib/services/app/onboarding';
@@ -29,6 +30,7 @@
     assets: AssetsPage,
     search: SearchPage,
     workflow: WorkflowPage,
+    'workflow-edit': WorkflowEditorPage,
     config: ConfigPage,
     // For small screens
     menu: MenuPage,
@@ -47,8 +49,21 @@
 
     const { path } = parseLocation();
 
+    // Check for workflow edit route first (more specific pattern)
+    if (path.match(/^\/workflow\/edit\/.+\/.+$/)) {
+      if ($selectedPageName !== 'workflow-edit') {
+        $selectedPageName = 'workflow-edit';
+      }
+
+      return;
+    }
+
     const { pageName } =
-      path.match(`^\\/(?<pageName>${Object.keys(pages).join('|')})\\b`)?.groups ?? {};
+      path.match(
+        `^\\/(?<pageName>${Object.keys(pages)
+          .filter((p) => p !== 'workflow-edit')
+          .join('|')})\\b`,
+      )?.groups ?? {};
 
     if (!pageName) {
       // Redirect any invalid page to the contents page

@@ -10,6 +10,7 @@ import { getAssetFoldersByPath, globalAssetFolder } from '$lib/services/assets/f
 import { backend } from '$lib/services/backends';
 import { cmsConfig } from '$lib/services/config';
 import { getEntriesByAssetURL } from '$lib/services/contents/collection/entries';
+import { getWorkflowAssetURL } from '$lib/services/contents/workflow';
 import { createPathRegEx, encodeFilePath } from '$lib/services/utils/file';
 import { getMediaMetadata } from '$lib/services/utils/media';
 import { transformImage } from '$lib/services/utils/media/image/transform';
@@ -238,6 +239,17 @@ export const getMediaFieldURL = async ({
 
   if (/^(?:https?|data|blob):/.test(value)) {
     return value;
+  }
+
+  // Check if we're in workflow mode and try to get GitHub raw URL
+  const { owner, repo } = get(backend)?.repository ?? {};
+
+  if (owner && repo) {
+    const workflowURL = getWorkflowAssetURL(value, { owner, repo });
+
+    if (workflowURL) {
+      return workflowURL;
+    }
   }
 
   const asset = getAssetByPath({ value, entry, collectionName, fileName });
