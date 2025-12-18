@@ -13,7 +13,7 @@ vi.mock('$lib/services/config', () => ({
 vi.mock('$lib/services/contents/draft/save/key-path', () => ({
   createKeyPathList: vi.fn((fields) => fields.map((/** @type {any} */ f) => f.name)),
 }));
-vi.mock('$lib/services/contents/widgets/list/helper', () => ({
+vi.mock('$lib/services/contents/fields/list/helper', () => ({
   hasRootListField: vi.fn((fields) => fields.length === 1 && fields[0].widget === 'list'),
 }));
 vi.mock('svelte/store', async () => {
@@ -49,7 +49,7 @@ vi.mock('$lib/services/contents/entry/fields', () => ({
   getField,
 }));
 
-vi.mock('$lib/services/contents/widgets/date-time/helper', () => ({
+vi.mock('$lib/services/contents/fields/date-time/helper', () => ({
   parseDateTimeConfig,
 }));
 
@@ -522,7 +522,7 @@ describe('Test copyProperty()', () => {
   });
 
   describe('TOML date conversion', () => {
-    test('converts ISO 8601 datetime string to TomlDate when isTomlOutput is true and field widget is datetime with no format', async () => {
+    test('converts ISO 8601 datetime string to TomlDate when isTomlOutput is true and field type is datetime with no format', async () => {
       const { TomlDate: TomlDateClass } = await vi.importActual('smol-toml');
       /** @type {FlattenedEntryContent} */
       const sortedMap = {};
@@ -602,7 +602,7 @@ describe('Test copyProperty()', () => {
         field: { name: 'publishDate', widget: 'string', required: false },
       });
 
-      // The date should remain as a string because widget is not 'datetime'
+      // The date should remain as a string because field type is not 'datetime'
       expect(sortedMap.publishDate).toBe('2024-01-15T10:30:00Z');
       expect(typeof sortedMap.publishDate).toBe('string');
     });

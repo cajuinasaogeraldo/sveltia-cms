@@ -26,7 +26,7 @@ vi.mock('$lib/services/contents/entry/summary', () => ({
   getEntrySummary: vi.fn(),
 }));
 
-vi.mock('$lib/services/contents/widgets/date-time/helper', () => ({
+vi.mock('$lib/services/contents/fields/date-time/helper', () => ({
   getDate: vi.fn(),
 }));
 
@@ -38,7 +38,7 @@ const { getIndexFile } = await import('$lib/services/contents/collection/index-f
 const { getSortKeyType } = await import('$lib/services/contents/collection/view/sort-keys');
 const { getField, getPropertyValue } = await import('$lib/services/contents/entry/fields');
 const { getEntrySummary } = await import('$lib/services/contents/entry/summary');
-const { getDate } = await import('$lib/services/contents/widgets/date-time/helper');
+const { getDate } = await import('$lib/services/contents/fields/date-time/helper');
 const { removeMarkdownSyntax } = await import('$lib/services/utils/markdown');
 
 describe('markdownFieldKeys', () => {
@@ -368,7 +368,7 @@ describe('sortEntries', () => {
     expect(result.map((e) => e.slug)).toEqual(['entry-2', 'entry-3', 'entry-1']);
   });
 
-  test('should strip markdown syntax when sorting markdown widget fields', () => {
+  test('should strip markdown syntax when sorting markdown fields', () => {
     const conditions = { key: 'title', order: 'ascending' };
 
     // Use simple markdown values that sort differently with vs without **
@@ -441,6 +441,85 @@ describe('sortEntries', () => {
     const result = sortEntries(entries, mockCollection, conditions);
 
     // Confirm that removeMarkdownSyntax was called (meaning lines 75-76 were executed)
+    expect(stripCallCount).toBeGreaterThan(0);
+
+    // After stripping **, should be sorted as A, B, C
+    expect(result.map((e) => e.slug)).toEqual(['a-entry', 'b-entry', 'c-entry']);
+  });
+
+  test('should strip markdown syntax when sorting richtext fields', () => {
+    const conditions = { key: 'title', order: 'ascending' };
+
+    // Use simple markdown values that sort differently with vs without **
+    const entries = [
+      {
+        id: '1',
+        sha: 'sha1',
+        slug: 'c-entry',
+        subPath: '',
+        locales: {
+          en: {
+            path: 'path1',
+            slug: 'c-entry',
+            content: { title: '**C Title**' },
+          },
+        },
+      },
+      {
+        id: '2',
+        sha: 'sha2',
+        slug: 'a-entry',
+        subPath: '',
+        locales: {
+          en: {
+            path: 'path2',
+            slug: 'a-entry',
+            content: { title: '**A Title**' },
+          },
+        },
+      },
+      {
+        id: '3',
+        sha: 'sha3',
+        slug: 'b-entry',
+        subPath: '',
+        locales: {
+          en: {
+            path: 'path3',
+            slug: 'b-entry',
+            content: { title: '**B Title**' },
+          },
+        },
+      },
+    ];
+
+    vi.mocked(getField).mockReturnValue({
+      name: 'title',
+      widget: 'richtext',
+      label: 'Title',
+    });
+
+    vi.mocked(getSortKeyType).mockReturnValue(String);
+
+    vi.mocked(getPropertyValue).mockImplementation(({ entry, key }) => {
+      if (key === 'title') {
+        return entry.locales.en.content.title;
+      }
+
+      return undefined;
+    });
+
+    let stripCallCount = 0;
+
+    vi.mocked(removeMarkdownSyntax).mockImplementation((value) => {
+      stripCallCount += 1;
+      // Remove the ** markdown syntax
+      return value.replace(/\*\*/g, '');
+    });
+
+    const result = sortEntries(entries, mockCollection, conditions);
+
+    // Confirm that removeMarkdownSyntax was called (meaning lines 73-76 were executed)
     expect(stripCallCount).toBeGreaterThan(0);
 
     // After stripping **, should be sorted as A, B, C

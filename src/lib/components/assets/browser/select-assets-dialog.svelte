@@ -26,7 +26,7 @@
   import {
     convertFileItemToAsset,
     getUnsavedAssets,
-  } from '$lib/services/contents/widgets/file/process';
+  } from '$lib/services/contents/fields/file/process';
   import { allCloudStorageServices } from '$lib/services/integrations/media-libraries/cloud';
   import {
     allStockAssetProviders,
@@ -72,6 +72,7 @@
     open = $bindable(false),
     multiple = false,
     kind,
+    // svelte-ignore state_referenced_locally
     accept = kind === 'image' ? SUPPORTED_IMAGE_TYPES.join(',') : undefined,
     canEnterURL = true,
     entryDraft,

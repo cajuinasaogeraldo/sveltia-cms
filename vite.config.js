@@ -7,9 +7,13 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { createGenerator } from 'ts-json-schema-generator';
 import { defineConfig } from 'vite';
 
-import { BUILTIN_WIDGETS } from './src/lib/services/contents/widgets';
+import { BUILTIN_FIELD_TYPES } from './src/lib/services/contents/fields';
 import svelteConfig from './svelte.config';
 
+/**
+ * List of dev dependencies to include in the published `package.json`.
+ */
+const DEV_DEPENDENCIES = ['@types/react', 'immutable'];
 /**
  * Path to the generated main type declaration file.
  */
@@ -32,6 +36,7 @@ const copyPackageFiles = () => ({
     // eslint-disable-next-line jsdoc/require-jsdoc
     handler: async () => {
       const packageJson = JSON.parse(await readFile('package.json'));
+      const { dependencies, devDependencies } = packageJson;
 
       // Remove unnecessary properties as we only publish compiled bundles
       delete packageJson.dependencies;
@@ -39,10 +44,10 @@ const copyPackageFiles = () => ({
 
       // Add properties for distribution; paths are relative to `package`
       Object.assign(packageJson, {
-        devDependencies: {
-          // Keep only React type declarations used in the generated `d.ts` files
-          '@types/react': packageJson.devDependencies['@types/react'],
-        },
+        // Keep only type declarations imported in the generated `d.ts` files
+        devDependencies: Object.fromEntries(
+          DEV_DEPENDENCIES.map((key) => [key, dependencies[key] ?? devDependencies[key]]),
+        ),
         files: ['dist', 'schema', 'types', 'main.d.ts'],
         main: './dist/sveltia-cms.mjs',
         module: './dist/sveltia-cms.mjs',
@@ -130,12 +135,12 @@ const generateSchema = async () => {
     { required: ['singletons'] },
   ];
 
-  // Disallow built-in widget names for custom widgets. We need this because the `Exclude` type
+  // Disallow built-in field type names for custom fields. We need this because the `Exclude` type
   // utility used in the TypeScript definition is not converted to JSON schema.
   // @see https://github.com/vega/ts-json-schema-generator/issues/993
   Object.assign(schema.definitions.CustomField.properties.widget, {
     minLength: 1,
-    not: { enum: BUILTIN_WIDGETS },
+    not: { enum: BUILTIN_FIELD_TYPES },
   });
 
   const schemaString = JSON.stringify(schema)

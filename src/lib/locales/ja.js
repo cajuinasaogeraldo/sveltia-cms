@@ -235,6 +235,7 @@ export const strings = {
   hide_info: '情報を隠す',
   all_assets: 'すべてのアセット',
   global_assets: 'グローバルアセット',
+  entry_not_found: 'エントリーが見つかりませんでした。',
   creating_entries_disabled_by_admin:
     'このコレクションへの新しいエントリーの作成は、管理者によって無効化されています。',
   creating_entries_disabled_by_limit:
@@ -405,7 +406,7 @@ export const strings = {
   x_field: '「{field}」フィールド',
   show_field_options: 'フィールドオプションを表示',
   field_options: 'フィールドオプション',
-  unsupported_widget_x: '非対応ウィジェット: {name}',
+  unsupported_field_type_x: '非対応フィールドタイプ: {name}',
   enable_x_locale: '{locale} を有効化',
   reenable_x_locale: '{locale} を再度有効化',
   disable_x_locale: '{locale} を無効化',
@@ -427,7 +428,7 @@ export const strings = {
   revert_all_changes: 'すべての変更を取り消す',
   edit_slug: 'スラッグを編集',
   edit_slug_warning:
-    'スラッグを変更すると、エントリーへの内部・外部リンクが壊れる可能性があります。現在のところ、Sveltia CMS は Relation ウィジェットで作成された参照を更新しないため、そのような参照は他のリンクとともに手動で更新する必要があります。',
+    'スラッグを変更すると、エントリーへの内部・外部リンクが壊れる可能性があります。現在のところ、Sveltia CMS は Relation フィールドで作成された参照を更新しないため、そのような参照は他のリンクとともに手動で更新する必要があります。',
   edit_slug_error: {
     empty: 'スラッグは空白にはできません。',
     duplicate: 'このスラッグは他のエントリーに使われています。',
@@ -508,7 +509,7 @@ export const strings = {
   location: '場所',
   map_lat_lng: '緯度 {latitude}、経度 {longitude} の地図',
 
-  // Widgets
+  // Fields
   select_file: 'ファイルを選択',
   select_image: '画像を選択',
   replace_file: 'ファイルを差し替え',
@@ -695,8 +696,8 @@ export const strings = {
       invalid_variable_type: '変数タイプ名 `{name}` は無効です。特殊文字を含めることはできません。',
       duplicate_variable_type:
         '変数タイプ名は一意でなければなりませんが、`{name}` が複数回使用されています。',
-      date_widget:
-        'Sveltia CMS では非推奨の `date` ウィジェットはサポートされていません。代わりに `time_format:false` オプション付きの `datetime` ウィジェットを使用してください。',
+      date_field_type:
+        'Sveltia CMS では非推奨の Date フィールドタイプはサポートされていません。代わりに `time_format:false` オプション付きの DateTime フィールドタイプを使用してください。',
       unsupported_deprecated_option:
         'Sveltia CMS では非推奨の `{prop}` オプションはサポートされていません。代わりに `{newProp}` オプションを使用してください。',
       allow_multiple:

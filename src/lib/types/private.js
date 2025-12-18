@@ -29,7 +29,7 @@
 /**
  * A variant of {@link FieldKeyPath} that can include type information for fields with variable
  * types. The syntax uses angle brackets to enclose the type, e.g. `blocks.*<image>.src` (for a
- * variable type List field; a list index is replaced with an asterisk) or `widget<button>.label`
+ * variable type List field; a list index is replaced with an asterisk) or `field<button>.label`
  * (for a variable type Object field).
  * @typedef {string} TypedFieldKeyPath
  */
@@ -641,6 +641,7 @@
  * @property {Field[]} fields Field definition for the collection or collection file. If index file
  * inclusion is enabled and the draft is the index file, it will be the index file’s fields.
  * @property {Entry} [originalEntry] Original entry or `undefined` if it’s a new entry draft.
+ * @property {InternalLocaleCode} defaultLocale Default locale code.
  * @property {LocaleStateMap} originalLocales Original locale state at the time of draft creation.
  * @property {LocaleStateMap} currentLocales Current locale state.
  * @property {LocaleSlugMap} originalSlugs Key is a locale code, value is the original slug.
@@ -650,7 +651,7 @@
  * @property {LocaleContentMap} currentValues Key is a locale code, value is a flattened, proxified
  * object containing all the current field values while editing.
  * @property {LocaleContentMap} extraValues Key is a locale code, value is a flattened object
- * containing field values in Markdown editor components.
+ * containing field values in rich text editor components.
  * @property {EntryFileMap} files Files to be uploaded.
  * @property {LocaleValidityMap} validities Key is a locale code, value is a flattened object
  * containing validation results of all the current field values while editing.
@@ -913,27 +914,27 @@
 
 /**
  * Key to store the current values in the {@link EntryDraft}. Usually `currentValues`, but can be
- * `extraValues` to store extra values for a Markdown editor component.
+ * `extraValues` to store extra values for a rich text editor component.
  * @typedef {'currentValues' | 'extraValues'} DraftValueStoreKey
  */
 
 /**
  * Context for a field, which may change the behavior of the editor/preview.
- * @typedef {'markdown-editor-component' | 'single-subfield-list-widget'} WidgetContext
+ * @typedef {'rich-text-editor-component' | 'single-subfield-list-field'} FieldContext
  */
 
 /**
  * Context for a field editor.
  * @typedef {object} FieldEditorContext
- * @property {WidgetContext} [widgetContext] Where the field is rendered.
+ * @property {FieldContext} [fieldContext] Where the field is rendered.
  * @property {DraftValueStoreKey} valueStoreKey Key to store the values in {@link EntryDraft}.
  * @property {Writable<Component>} [extraHint] Component to render an extra hint in the field
  * editor.
  */
 
 /**
- * Common properties to be passed to a field widget’s editor component.
- * @typedef {object} WidgetEditorProps
+ * Common properties to be passed to a field’s editor component.
+ * @typedef {object} FieldEditorProps
  * @property {InternalLocaleCode} locale Current pane’s locale.
  * @property {FieldKeyPath} keyPath Field key path.
  * @property {TypedFieldKeyPath} typedKeyPath Typed field key path.
@@ -945,8 +946,8 @@
  */
 
 /**
- * Common properties to be passed to a field widget’s preview component.
- * @typedef {object} WidgetPreviewProps
+ * Common properties to be passed to a field’s preview component.
+ * @typedef {object} FieldPreviewProps
  * @property {InternalLocaleCode} locale Current pane’s locale.
  * @property {FieldKeyPath} keyPath Field key path.
  * @property {TypedFieldKeyPath} typedKeyPath Typed field key path.
@@ -989,6 +990,7 @@
  * @property {Field} fieldConfig Field configuration.
  * @property {FieldKeyPath} keyPath Field key path, e.g. `author.name`.
  * @property {LocaleCode} locale Locale code.
+ * @property {InternalLocaleCode} defaultLocale Default locale of the entry draft.
  * @property {string} [dynamicValue] Dynamic default value parsed from the URL query string.
  * @see https://decapcms.org/docs/dynamic-default-values/
  */
@@ -1049,9 +1051,9 @@
  * @typedef {object} GetFieldArgs
  * @property {string} collectionName Collection name.
  * @property {string} [fileName] Collection file name. File/singleton collection only.
- * @property {string} [componentName] Markdown editor component name.
+ * @property {string} [componentName] Rich text editor component name.
  * @property {FlattenedEntryContent} [valueMap] Object holding current entry values. This is
- * required when working with list/object widget variable types.
+ * required when working with list/object field variable types.
  * @property {FieldKeyPath | TypedFieldKeyPath} keyPath Field key path or typed key path.
  * @property {boolean} [isIndexFile] Whether the corresponding entry is the collection’s special
  * index file used specifically in Hugo.

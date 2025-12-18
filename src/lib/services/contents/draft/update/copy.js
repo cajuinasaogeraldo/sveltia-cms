@@ -5,7 +5,7 @@ import TurndownService from 'turndown';
 import { entryDraft } from '$lib/services/contents/draft';
 import { copyFromLocaleToast, translatorApiKeyDialogState } from '$lib/services/contents/editor';
 import { getField } from '$lib/services/contents/entry/fields';
-import { getListFieldInfo } from '$lib/services/contents/widgets/list/helper';
+import { getListFieldInfo } from '$lib/services/contents/fields/list/helper';
 import { translator } from '$lib/services/integrations/translators';
 import { prefs } from '$lib/services/user/prefs';
 
@@ -20,8 +20,8 @@ import { prefs } from '$lib/services/user/prefs';
  * @property {InternalLocaleCode} sourceLanguage Source locale, e.g. `en`.
  * @property {InternalLocaleCode} targetLanguage Target locale, e.g. `ja`.
  * @property {FieldKeyPath} [keyPath] Flattened (dot-notated) object keys that will be used for
- * searching the source values. Omit this if copying all the fields. If the triggered widget is List
- * or Object, this will likely match multiple fields.
+ * searching the source values. Omit this if copying all the fields. If the triggered field is the
+ * List or Object type, this will likely match multiple fields.
  * @property {boolean} [translate] Whether to translate the copied text fields.
  */
 
@@ -62,15 +62,15 @@ export const getCopyingFieldMap = ({ draft, options }) => {
       .map(([_keyPath, value]) => {
         const targetLocaleValue = currentValues[targetLanguage][_keyPath];
         const field = getField({ ...getFieldArgs, keyPath: _keyPath });
-        const widget = field?.widget ?? 'string';
+        const fieldType = field?.widget ?? 'string';
 
         if (
           (keyPath && !_keyPath.startsWith(keyPath)) ||
           typeof value !== 'string' ||
           !value ||
-          !['markdown', 'text', 'string', 'list'].includes(widget) ||
+          !['richtext', 'markdown', 'text', 'string', 'list'].includes(fieldType) ||
           // prettier-ignore
-          (widget === 'list' &&
+          (fieldType === 'list' &&
           getListFieldInfo(/** @type {ListField} */ (field)).hasSubFields) ||
           (!translate && value === targetLocaleValue) ||
           // Skip populated fields when translating all the fields
@@ -79,7 +79,9 @@ export const getCopyingFieldMap = ({ draft, options }) => {
           return null;
         }
 
-        return [_keyPath, { value, isMarkdown: widget === 'markdown' }];
+        const isMarkdown = fieldType === 'richtext' || fieldType === 'markdown';
+
+        return [_keyPath, { value, isMarkdown }];
       })
       .filter((entry) => !!entry),
   );

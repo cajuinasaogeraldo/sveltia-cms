@@ -6,6 +6,7 @@ import { get } from 'svelte/store';
 import { globalAssetFolder } from '$lib/services/assets/folders';
 import { backend } from '$lib/services/backends';
 import { cmsConfig } from '$lib/services/config';
+import { callEventHooks } from '$lib/services/contents/draft/events';
 import { replaceBlobURL } from '$lib/services/contents/draft/save/assets';
 import { createEntryPath } from '$lib/services/contents/draft/save/entry-path';
 import { serializeContent } from '$lib/services/contents/draft/save/serialize';
@@ -120,7 +121,10 @@ export const createBaseSavingEntryData = async ({
               keyPath,
               content,
               // Enable encoding for markdown fields to support embedded images
-              encodingEnabled: field?.widget === 'markdown' ? true : encodingEnabled,
+              encodingEnabled:
+                field?.widget === 'richtext' || field?.widget === 'markdown'
+                  ? true
+                  : encodingEnabled,
             };
 
             // Replace blob URLs in File/Image fields with asset paths
@@ -297,6 +301,8 @@ export const createSavingEntryData = async ({ draft, slugs }) => {
       : defaultLocaleSlug,
     locales: Object.fromEntries(Object.entries(localizedEntryMap)),
   };
+
+  await callEventHooks({ type: 'preSave', draft, savingEntry });
 
   const databaseName = get(backend)?.repository?.databaseName;
   const cacheDB = databaseName ? new IndexedDB(databaseName, 'file-cache') : undefined;

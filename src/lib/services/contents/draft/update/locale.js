@@ -36,12 +36,15 @@ export const copyDefaultLocaleValues = (content) => {
       return;
     }
 
-    const { widget = 'text', i18n = false } = field;
+    const { widget: fieldType = 'text', i18n = false } = field;
 
     // Reset the field value to the default value or an empty string if the field is a text-like
-    // widget and i18n is enabled, because the content would likely be translated by the user.
+    // field type and i18n is enabled, because the content would likely be translated by the user.
     // Otherwise, the content would be copied from the default locale.
-    if (['text', 'string', 'markdown'].includes(widget) && [true, 'translate'].includes(i18n)) {
+    if (
+      ['text', 'string', 'richtext', 'markdown'].includes(fieldType) &&
+      [true, 'translate'].includes(i18n)
+    ) {
       newContent[keyPath] = content[keyPath] ?? '';
     }
 
@@ -64,13 +67,13 @@ export const copyDefaultLocaleValues = (content) => {
  */
 export const toggleLocale = (locale) => {
   /** @type {Writable<EntryDraft>} */ (entryDraft).update((_draft) => {
-    const { fields, currentLocales, currentValues, validities } = _draft;
+    const { fields, defaultLocale, currentLocales, currentValues, validities } = _draft;
     const enabled = !currentLocales[locale];
 
     // Initialize the content for the locale
     if (enabled && !currentValues[locale]) {
       const { collectionName, fileName, originalValues } = _draft;
-      const newContent = getDefaultValues(fields, locale);
+      const newContent = getDefaultValues({ fields, locale, defaultLocale });
 
       return {
         ..._draft,

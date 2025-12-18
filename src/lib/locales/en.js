@@ -234,6 +234,7 @@ export const strings = {
   hide_info: 'Hide Info',
   all_assets: 'All Assets',
   global_assets: 'Global Assets',
+  entry_not_found: 'Entry not found.',
   creating_entries_disabled_by_admin:
     'Creating new entries in this collection is disabled by the administrator.',
   creating_entries_disabled_by_limit:
@@ -401,7 +402,7 @@ export const strings = {
   x_field: '“{field}” Field',
   show_field_options: 'Show Field Options',
   field_options: 'Field Options',
-  unsupported_widget_x: 'Unsupported widget: {name}',
+  unsupported_field_type_x: 'Unsupported field type: {name}',
   enable_x_locale: 'Enable {locale}',
   reenable_x_locale: 'Reenable {locale}',
   disable_x_locale: 'Disable {locale}',
@@ -423,7 +424,7 @@ export const strings = {
   revert_all_changes: 'Revert All Changes',
   edit_slug: 'Edit Slug',
   edit_slug_warning:
-    'Changing the slug may break internal and external links to the entry. Currently, Sveltia CMS does not update references created with the Relation widget, so you’ll need to manually update such references along with other links.',
+    'Changing the slug may break internal and external links to the entry. Currently, Sveltia CMS does not update references created with Relation fields, so you’ll need to manually update such references along with other links.',
   edit_slug_error: {
     empty: 'The slug cannot be empty.',
     duplicate: 'This slug is used for another entry.',
@@ -502,7 +503,7 @@ export const strings = {
   location: 'Location',
   map_lat_lng: 'Map showing latitude {latitude}, longitude {longitude}',
 
-  // Widgets
+  // Fields
   select_file: 'Select File',
   select_image: 'Select Image',
   replace_file: 'Replace File',
@@ -694,8 +695,8 @@ export const strings = {
         'The variable type name `{name}` is invalid. It must not contain special characters.',
       duplicate_variable_type:
         'Variable type names must be unique, but `{name}` is used more than once.',
-      date_widget:
-        'The deprecated `date` widget is not supported in Sveltia CMS. Use the `datetime` widget with the `time_format:false` option instead.',
+      date_field_type:
+        'The deprecated Date field type is not supported in Sveltia CMS. Use the DateTime field type with the `time_format:false` option instead.',
       unsupported_deprecated_option:
         'The deprecated `{prop}` option is not supported in Sveltia CMS. Use the `{newProp}` option instead.',
       allow_multiple:

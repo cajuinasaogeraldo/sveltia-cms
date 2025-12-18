@@ -1,10 +1,12 @@
+import { isObject } from '@sveltia/utils/object';
 import createClass from 'create-react-class';
 import { createElement } from 'react';
 import { mount } from 'svelte';
 
+import { eventHookRegistry, SUPPORTED_EVENT_TYPES } from '$lib/services/contents/draft/events';
 import { customPreviewStyleRegistry } from '$lib/services/contents/editor';
+import { customComponentRegistry } from '$lib/services/contents/fields/rich-text/components/definitions';
 import { customFileFormatRegistry } from '$lib/services/contents/file/config';
-import { customComponentRegistry } from '$lib/services/contents/widgets/markdown/components/definitions';
 
 import App from './components/app.svelte';
 
@@ -13,10 +15,10 @@ import App from './components/app.svelte';
  * @import {
  * AppEventListener,
  * CmsConfig,
+ * CustomFieldControlProps,
+ * CustomFieldPreviewProps,
+ * CustomFieldSchema,
  * CustomPreviewTemplateProps,
- * CustomWidgetControlProps,
- * CustomWidgetPreviewProps,
- * CustomWidgetSchema,
  * EditorComponentDefinition,
  * FileFormatter,
  * FileParser,
@@ -58,9 +60,14 @@ let initialized = false;
  * @param {object} [options] Options.
  * @param {CmsConfig} [options.config] Configuration to be merged with `config.yml`. Include
  * `load_config_file: false` to prevent the configuration file from being loaded.
+ * @throws {TypeError} If `config` is not an object or undefined.
  * @see https://decapcms.org/docs/manual-initialization/
  */
 const init = async ({ config } = {}) => {
+  if (config !== undefined && !isObject(config)) {
+    throw new TypeError('The `config` option for `CMS.init()` must be an object');
+  }
+
   if (initialized) {
     return;
   }
@@ -88,18 +95,75 @@ const init = async ({ config } = {}) => {
  * @param {string} extension File extension.
  * @param {{ fromFile?: FileParser, toFile?: FileFormatter }} methods Parser and/or formatter
  * methods. Async functions can be used.
+ * @throws {TypeError} If `name` or `extension` is not a string, or if `methods` is not an object.
+ * @throws {Error} If at least one of `fromFile` or `toFile` is not provided.
  * @see https://decapcms.org/docs/custom-formatters/
  */
-const registerCustomFormat = (name, extension, { fromFile, toFile }) => {
+const registerCustomFormat = (name, extension, { fromFile, toFile } = {}) => {
+  if (typeof name !== 'string') {
+    throw new TypeError('The `name` option for `CMS.registerCustomFormat()` must be a string');
+  }
+
+  if (typeof extension !== 'string') {
+    throw new TypeError('The `extension` option for `CMS.registerCustomFormat()` must be a string');
+  }
+
+  if (typeof fromFile !== 'function' && typeof toFile !== 'function') {
+    throw new Error(
+      'At least one of `fromFile` or `toFile` must be provided to `CMS.registerCustomFormat()`',
+    );
+  }
+
+  if (typeof fromFile !== 'undefined' && typeof fromFile !== 'function') {
+    throw new TypeError(
+      'The `fromFile` option for `CMS.registerCustomFormat()` must be a function',
+    );
+  }
+
+  if (typeof toFile !== 'undefined' && typeof toFile !== 'function') {
+    throw new TypeError('The `toFile` option for `CMS.registerCustomFormat()` must be a function');
+  }
+
   customFileFormatRegistry.set(name, { extension, parser: fromFile, formatter: toFile });
 };
 
 /**
  * Register a custom component.
  * @param {EditorComponentDefinition} definition Component definition.
+ * @throws {TypeError} If `definition` is not an object, or if required properties are invalid.
  * @see https://decapcms.org/docs/custom-widgets/#registereditorcomponent
  */
 const registerEditorComponent = (definition) => {
+  if (!definition || typeof definition !== 'object') {
+    throw new TypeError(
+      'The `definition` option for `CMS.registerEditorComponent()` must be an object',
+    );
+  }
+
+  if (typeof definition.id !== 'string') {
+    throw new TypeError('The `definition.id` must be a string');
+  }
+
+  if (typeof definition.label !== 'string') {
+    throw new TypeError('The `definition.label` must be a string');
+  }
+
+  if (typeof definition.pattern !== 'object' || !(definition.pattern instanceof RegExp)) {
+    throw new TypeError('The `definition.pattern` must be a RegExp');
+  }
+
+  if (typeof definition.toBlock !== 'function') {
+    throw new TypeError('The `definition.toBlock` must be a function');
+  }
+
+  if (typeof definition.toPreview !== 'function') {
+    throw new TypeError('The `definition.toPreview` must be a function');
+  }
+
+  if (!Array.isArray(definition.fields)) {
+    throw new TypeError('The `definition.fields` must be an array');
+  }
+
   customComponentRegistry.set(definition.id, definition);
 
   // eslint-disable-next-line no-console
@@ -109,12 +173,31 @@ const registerEditorComponent = (definition) => {
 /**
  * Register an event listener.
  * @param {AppEventListener} eventListener Event listener.
+ * @throws {TypeError} If the event listener is not an object, or is missing required properties.
+ * @throws {RangeError} If the event listener name is not supported.
  * @see https://decapcms.org/docs/registering-events/
  */
 const registerEventListener = (eventListener) => {
-  // eslint-disable-next-line no-console
-  console.warn('Event hooks are not yet supported in Sveltia CMS.');
-  void [eventListener];
+  if (!isObject(eventListener)) {
+    throw new TypeError('The event listener must be an object');
+  }
+
+  const { name, handler } = eventListener;
+
+  if (typeof name !== 'string' || typeof handler !== 'function') {
+    throw new TypeError(
+      'The event listener must have a string `name` property and a function `handler` property',
+    );
+  }
+
+  if (!SUPPORTED_EVENT_TYPES.includes(name)) {
+    throw new RangeError(
+      `Unsupported event listener name "${name}". ` +
+        `Supported names are: ${SUPPORTED_EVENT_TYPES.join(', ')}`,
+    );
+  }
+
+  eventHookRegistry.add(eventListener);
 };
 
 /**
@@ -152,16 +235,16 @@ const registerPreviewTemplate = (name, component) => {
 };
 
 /**
- * Register a custom widget.
- * @param {string} name Widget name.
- * @param {ComponentType<CustomWidgetControlProps> | string} control Component for the edit pane.
- * @param {ComponentType<CustomWidgetPreviewProps>} [preview] Component for the preview pane.
- * @param {CustomWidgetSchema} [schema] Field schema.
+ * Register a custom field type (widget).
+ * @param {string} name Field type name.
+ * @param {ComponentType<CustomFieldControlProps> | string} control Component for the edit pane.
+ * @param {ComponentType<CustomFieldPreviewProps>} [preview] Component for the preview pane.
+ * @param {CustomFieldSchema} [schema] Field schema.
  * @see https://decapcms.org/docs/custom-widgets/
  */
-const registerWidget = (name, control, preview, schema) => {
+const registerFieldType = (name, control, preview, schema) => {
   // eslint-disable-next-line no-console
-  console.warn('Custom widgets are not yet supported in Sveltia CMS.');
+  console.warn('Custom field types (widgets) are not yet supported in Sveltia CMS.');
   void [name, control, preview, schema];
 };
 
@@ -171,9 +254,10 @@ const CMS = new Proxy(
     registerCustomFormat,
     registerEditorComponent,
     registerEventListener,
+    registerFieldType,
     registerPreviewStyle,
     registerPreviewTemplate,
-    registerWidget,
+    registerWidget: registerFieldType, // alias for backward compatibility with Netlify/Decap CMS
   },
   {
     // eslint-disable-next-line jsdoc/require-jsdoc
@@ -210,7 +294,7 @@ export { init };
 window.CMS = CMS;
 window.initCMS = init;
 
-// Expose React APIs for custom widgets, custom preview templates and custom editor components
+// Expose React APIs for custom field types, custom preview templates and custom editor components
 // @see https://decapcms.org/docs/custom-widgets/
 // @see https://decapcms.org/docs/customization/
 window.createClass = createClass;
