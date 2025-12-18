@@ -15,8 +15,6 @@
   "scripts": {
     "build": "vite build",
     "build:watch": "vite build --watch",
-    "pre-release": "node scripts/prepare-release.js",
-    "release": "node scripts/release.js",
     "check": "pnpm run '/^check:.*/'",
     "check:audit": "pnpm audit",
     "check:eslint": "eslint .",
@@ -27,8 +25,10 @@
     "check:svelte": "svelte-check",
     "dev": "vite",
     "format": "prettier --write .",
+    "pre-release": "node scripts/prepare-release.js",
     "prepublishOnly": "vite build",
     "preview": "vite preview",
+    "release": "node scripts/release.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest"

@@ -1,5 +1,5 @@
 /**
- * Brazilian Portuguese translation for Sveltia CMS
+ * Brazilian Portuguese translation for Sveltia CMS.
  */
 export const strings = {
   // Pages & Navigation
@@ -81,7 +81,8 @@ export const strings = {
   sign_in_using_pat_title: 'Entrar Usando Token de Acesso Pessoal',
   sign_in_using_pat_description:
     'Digite seu token abaixo. Ele deve ter acesso de leitura/escrita ao conteúdo do repositório.',
-  sign_in_using_pat_link: 'Você pode gerar um token na <a>página de configurações de usuário do {service}</a>.',
+  sign_in_using_pat_link:
+    'Você pode gerar um token na <a>página de configurações de usuário do {service}</a>.',
   personal_access_token: 'Token de Acesso Pessoal',
   authorizing: 'Autorizando…',
   signing_in: 'Entrando…',
@@ -94,7 +95,8 @@ export const strings = {
   sign_in_error: {
     not_project_root:
       'A pasta selecionada não é um diretório raiz de repositório. Por favor, tente novamente.',
-    picker_dismissed: 'Não foi possível selecionar um diretório raiz de repositório. Por favor, tente novamente.',
+    picker_dismissed:
+      'Não foi possível selecionar um diretório raiz de repositório. Por favor, tente novamente.',
     authentication_aborted: 'Autenticação cancelada. Por favor, tente novamente.',
     invalid_token: 'O token fornecido é inválido. Por favor, verifique e tente novamente.',
     // Errors defined in Sveltia CMS Authenticator
@@ -102,11 +104,15 @@ export const strings = {
     UNSUPPORTED_BACKEND: 'Seu backend Git não é suportado pelo autenticador.',
     UNSUPPORTED_DOMAIN: 'Seu domínio não está autorizado a usar o autenticador.',
     MISCONFIGURED_CLIENT: 'ID do cliente ou segredo do aplicativo OAuth não está configurado.',
-    AUTH_CODE_REQUEST_FAILED: 'Falha ao receber um código de autorização. Por favor, tente novamente mais tarde.',
+    AUTH_CODE_REQUEST_FAILED:
+      'Falha ao receber um código de autorização. Por favor, tente novamente mais tarde.',
     CSRF_DETECTED: 'Potencial ataque CSRF detectado. Fluxo de autenticação abortado.',
-    TOKEN_REQUEST_FAILED: 'Falha ao solicitar um token de acesso. Por favor, tente novamente mais tarde.',
-    TOKEN_REFRESH_FAILED: 'Falha ao atualizar o token de acesso. Por favor, tente novamente mais tarde.',
-    MALFORMED_RESPONSE: 'Servidor respondeu com dados malformados. Por favor, tente novamente mais tarde.',
+    TOKEN_REQUEST_FAILED:
+      'Falha ao solicitar um token de acesso. Por favor, tente novamente mais tarde.',
+    TOKEN_REFRESH_FAILED:
+      'Falha ao atualizar o token de acesso. Por favor, tente novamente mais tarde.',
+    MALFORMED_RESPONSE:
+      'Servidor respondeu com dados malformados. Por favor, tente novamente mais tarde.',
   },
   backend_unsupported_version: 'O backend {name} requer {name} {version} ou posterior.',
   repository_no_access: 'Você não tem acesso ao repositório "{repo}".',
@@ -134,7 +140,8 @@ export const strings = {
   create_entry_or_assets: 'Criar Entrada ou Recursos',
   publish_changes: 'Publicar Alterações',
   publishing_changes: 'Publicando Alterações…',
-  publishing_changes_failed: 'Não foi possível publicar as alterações. Por favor, tente novamente mais tarde.',
+  publishing_changes_failed:
+    'Não foi possível publicar as alterações. Por favor, tente novamente mais tarde.',
   show_notifications: 'Mostrar Notificações',
   notifications: 'Notificações',
   show_account_menu: 'Mostrar Menu da Conta',
@@ -297,7 +304,8 @@ export const strings = {
   delete_selected_assets: 'Excluir Recursos Selecionados',
   confirm_deleting_this_asset: 'Tem certeza de que deseja excluir este recurso?',
   confirm_deleting_selected_asset: 'Tem certeza de que deseja excluir o recurso selecionado?',
-  confirm_deleting_selected_assets: 'Tem certeza de que deseja excluir os {count} recursos selecionados?',
+  confirm_deleting_selected_assets:
+    'Tem certeza de que deseja excluir os {count} recursos selecionados?',
   confirm_deleting_all_assets: 'Tem certeza de que deseja excluir todos os recursos?',
   delete_entry: 'Excluir Entrada',
   delete_entries: 'Excluir Entradas',
@@ -309,7 +317,8 @@ export const strings = {
   confirm_deleting_selected_entry: 'Tem certeza de que deseja excluir a entrada selecionada?',
   confirm_deleting_selected_entry_with_assets:
     'Tem certeza de que deseja excluir a entrada selecionada e os recursos associados?',
-  confirm_deleting_selected_entries: 'Tem certeza de que deseja excluir as {count} entradas selecionadas?',
+  confirm_deleting_selected_entries:
+    'Tem certeza de que deseja excluir as {count} entradas selecionadas?',
   confirm_deleting_selected_entries_with_assets:
     'Tem certeza de que deseja excluir as {count} entradas selecionadas e os recursos associados?',
   confirm_deleting_all_entries: 'Tem certeza de que deseja excluir todas as entradas?',
@@ -319,7 +328,8 @@ export const strings = {
   processing_files: 'Processando arquivos. Isso pode levar algum tempo.',
   uploading_files: 'Enviando Arquivos',
   confirm_replacing_file: 'Tem certeza de que deseja substituir "{name}" pelo seguinte arquivo?',
-  confirm_uploading_file: 'Tem certeza de que deseja salvar o seguinte arquivo na pasta "{folder}"?',
+  confirm_uploading_file:
+    'Tem certeza de que deseja salvar o seguinte arquivo na pasta "{folder}"?',
   confirm_uploading_files:
     'Tem certeza de que deseja salvar os seguintes {count} arquivos na pasta "{folder}"?',
   oversized_files: 'Arquivos Muito Grandes',
@@ -355,7 +365,8 @@ export const strings = {
   asset_url_copied: 'A URL do recurso foi copiada para a área de transferência.',
   asset_urls_copied: 'As URLs dos recursos foram copiadas para a área de transferência.',
   asset_path_copied: 'O caminho do arquivo do recurso foi copiado para a área de transferência.',
-  asset_paths_copied: 'Os caminhos dos arquivos dos recursos foram copiados para a área de transferência.',
+  asset_paths_copied:
+    'Os caminhos dos arquivos dos recursos foram copiados para a área de transferência.',
   asset_data_copied: 'O arquivo do recurso foi copiado para a área de transferência.',
   asset_downloaded: 'O arquivo do recurso foi baixado.',
   assets_downloaded: 'Os arquivos dos recursos foram baixados.',
@@ -378,8 +389,7 @@ export const strings = {
   create_entry_title: 'Criando {name}',
   create_entry_announcement: 'Você está criando uma nova entrada na coleção "{collection}".',
   edit_entry_title: '{collection} › {entry}',
-  edit_entry_announcement:
-    'Você está editando a entrada "{entry}" na coleção "{collection}".',
+  edit_entry_announcement: 'Você está editando a entrada "{entry}" na coleção "{collection}".',
   edit_file_announcement: 'Você está editando o arquivo "{file}" na coleção "{collection}".',
   edit_singleton_announcement: 'Você está editando o arquivo "{file}".',
   save_and_publish: 'Salvar e Publicar',
@@ -534,8 +544,10 @@ export const strings = {
       global: 'Recursos Globais',
     },
     error: {
-      invalid_key: 'Sua Chave da API é inválida ou expirou. Por favor, verifique e tente novamente.',
-      search_fetch_failed: 'Ocorreu um erro ao pesquisar recursos. Por favor, tente novamente mais tarde.',
+      invalid_key:
+        'Sua Chave da API é inválida ou expirou. Por favor, verifique e tente novamente.',
+      search_fetch_failed:
+        'Ocorreu um erro ao pesquisar recursos. Por favor, tente novamente mais tarde.',
       image_fetch_failed:
         'Ocorreu um erro ao baixar o recurso selecionado. Por favor, tente novamente mais tarde.',
     },
@@ -633,7 +645,8 @@ export const strings = {
 
   // Configuration
   config: {
-    one_error: 'Há um erro na configuração do CMS. Por favor, resolva o problema e tente novamente.',
+    one_error:
+      'Há um erro na configuração do CMS. Por favor, resolva o problema e tente novamente.',
     many_errors:
       'Há erros na configuração do CMS. Por favor, resolva os problemas e tente novamente.',
     error_locator: {
@@ -656,7 +669,8 @@ export const strings = {
       missing_repository: 'O repositório não está definido.',
       invalid_repository:
         'O repositório configurado é inválido. Deve estar no formato "proprietário/repo".',
-      oauth_implicit_flow: 'O método de autenticação configurado (fluxo implícito) não é suportado.',
+      oauth_implicit_flow:
+        'O método de autenticação configurado (fluxo implícito) não é suportado.',
       oauth_no_app_id: 'O ID do aplicativo OAuth não está definido.',
       missing_media_folder: 'A pasta de mídia não está definida.',
       invalid_media_folder: 'A pasta de mídia configurada é inválida. Deve ser uma string.',
@@ -687,7 +701,8 @@ export const strings = {
         'O campo {count} deve ter a opção `name` definida como uma string não vazia.',
       invalid_field_name:
         'O nome do campo `{name}` é inválido. Não deve conter caracteres especiais.',
-      duplicate_field_name: 'Os nomes dos campos devem ser únicos, mas `{name}` é usado mais de uma vez.',
+      duplicate_field_name:
+        'Os nomes dos campos devem ser únicos, mas `{name}` é usado mais de uma vez.',
       missing_variable_type:
         'O tipo de variável {count} deve ter a opção `name` definida como uma string não vazia.',
       invalid_variable_type:
@@ -700,12 +715,9 @@ export const strings = {
         'A opção obsoleta `{prop}` não é suportada no Sveltia CMS. Use a opção `{newProp}` em vez disso.',
       allow_multiple:
         'A opção `allow_multiple` não é suportada no Sveltia CMS. Use a opção `multiple` em vez disso, que tem padrão `false`.',
-      invalid_list_field:
-        'O campo List não pode ter as opções `field`, `fields` e `types` juntas.',
-      invalid_object_field:
-        'O campo Object não pode ter as opções `fields` e `types` juntas.',
-      object_field_missing_fields:
-        'O campo Object deve ter a opção `fields` ou `types` definida.',
+      invalid_list_field: 'O campo List não pode ter as opções `field`, `fields` e `types` juntas.',
+      invalid_object_field: 'O campo Object não pode ter as opções `fields` e `types` juntas.',
+      object_field_missing_fields: 'O campo Object deve ter a opção `fields` ou `types` definida.',
       relation_field_invalid_collection:
         'A coleção referenciada `{collection}` é inválida ou não está definida.',
       relation_field_invalid_collection_file:
@@ -731,7 +743,8 @@ export const strings = {
     indicator: 'Local',
     unsupported_browser:
       'O desenvolvimento local não é suportado no seu navegador. Por favor, use Chrome ou Edge.',
-    disabled: 'O desenvolvimento local está desabilitado no seu navegador. <a>Veja como habilitá-lo</a>.',
+    disabled:
+      'O desenvolvimento local está desabilitado no seu navegador. <a>Veja como habilitá-lo</a>.',
   },
 
   // Editorial Workflow
@@ -825,7 +838,8 @@ export const strings = {
       },
       cloud_storage: {
         field_label: 'Chave da API do {service}',
-        description: 'Digite sua chave da API do {service} para habilitar o envio de recursos para o {service}.',
+        description:
+          'Digite sua chave da API do {service} para habilitar o envio de recursos para o {service}.',
       },
       libraries_disabled: 'Bibliotecas de mídia externas estão desabilitadas pelo administrador.',
     },
@@ -833,7 +847,8 @@ export const strings = {
       title: 'Acessibilidade',
       underline_links: {
         title: 'Sublinhar Links',
-        description: 'Mostrar sublinhado para links na visualização de entrada e rótulos da interface do usuário.',
+        description:
+          'Mostrar sublinhado para links na visualização de entrada e rótulos da interface do usuário.',
         switch_label: 'Sempre Sublinhar Links',
       },
     },
