@@ -72,7 +72,10 @@
    * @param {UnpublishedEntry} entry Entry.
    */
   const handlePublish = async (entry) => {
-    const message = $_('confirm_publish', { default: `Publish "${entry.title ?? entry.slug}"?` });
+    const message = $_('confirm_publish', {
+      default: `Publish "${entry.title ?? entry.slug}"?`,
+      values: { title: entry.title ?? entry.slug },
+    });
 
     // eslint-disable-next-line no-alert
     if (!globalThis.confirm(message)) {

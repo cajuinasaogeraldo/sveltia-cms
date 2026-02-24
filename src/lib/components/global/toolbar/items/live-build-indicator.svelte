@@ -29,9 +29,10 @@
     }
   });
 
-  // Start/stop polling based on popup open state
+  // Start/stop polling based on popup open state or build running state
   $effect(() => {
-    if (isPopupOpen && isRemoteGitHubBackend) {
+    // Poll when popup is open OR when there's a build running
+    if ((isPopupOpen || $isLiveBuildRunning) && isRemoteGitHubBackend) {
       startLiveBuildPolling();
     } else {
       stopLiveBuildPolling();
@@ -140,7 +141,10 @@
     {#snippet startIcon()}
       <span class="indicator" class:running={$isLiveBuildRunning}>
         {#if $isLiveBuildRunning}
-          <Icon name="sync" class="spinning" />
+          <div class="spinner-wrapper">
+            <Icon name="sync" class="spinning" />
+            <span class="pulse-dot"></span>
+          </div>
         {:else if $liveBuildState.history[0]?.conclusion === 'success'}
           <Icon name="check_circle" />
         {:else if $liveBuildState.history[0]?.conclusion === 'failure'}
@@ -150,7 +154,11 @@
         {/if}
       </span>
     {/snippet}
-    {$_('deploy', { default: 'Deploy' })}
+    {#if $isLiveBuildRunning}
+      <span class="deploy-text">{$_('deploying', { default: 'Deploying' })}<span class="dots">...</span></span>
+    {:else}
+      {$_('deploy', { default: 'Deploy' })}
+    {/if}
     {#snippet popup()}
       <Menu aria-label={$_('deploy_status', { default: 'Deploy Status' })}>
         <div role="none" class="menu-header">
@@ -216,13 +224,47 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
 
     &.running {
       color: var(--sui-warning-foreground-color);
     }
 
+    .spinner-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pulse-dot {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: currentColor;
+      opacity: 0.6;
+      animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+
     :global(.spinning) {
       animation: spin 1s linear infinite;
+    }
+  }
+
+  .deploy-text {
+    display: inline-flex;
+    align-items: center;
+
+    .dots {
+      display: inline-flex;
+      width: 1em;
+      justify-content: space-between;
+
+      &::after {
+        content: '...';
+        animation: dots-animation 1.5s steps(4, end) infinite;
+      }
     }
   }
 
@@ -233,6 +275,38 @@
 
     to {
       transform: rotate(360deg);
+    }
+  }
+
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+
+    100% {
+      transform: scale(2.5);
+      opacity: 0;
+    }
+  }
+
+  @keyframes dots-animation {
+    0%,
+    20% {
+      content: '';
+    }
+
+    40% {
+      content: '.';
+    }
+
+    60% {
+      content: '..';
+    }
+
+    80%,
+    100% {
+      content: '...';
     }
   }
 

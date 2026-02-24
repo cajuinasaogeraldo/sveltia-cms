@@ -74,7 +74,7 @@ describe('live-status', () => {
       await refreshLiveBuilds();
 
       expect(fetchAPI).toHaveBeenCalledWith(
-        '/repos/test-owner/test-repo/actions/runs?branch=main&event=push&per_page=5',
+        '/repos/test-owner/test-repo/actions/runs?branch=main&per_page=5',
       );
     });
 
@@ -100,7 +100,7 @@ describe('live-status', () => {
 
       expect(fetchAPI).toHaveBeenCalledTimes(2);
       expect(fetchAPI).toHaveBeenLastCalledWith(
-        '/repos/test-owner/test-repo/actions/runs?branch=master&event=push&per_page=5',
+        '/repos/test-owner/test-repo/actions/runs?branch=master&per_page=5',
       );
     });
   });

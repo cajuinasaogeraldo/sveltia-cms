@@ -5,6 +5,7 @@
 
   import EntrancePage from '$lib/components/entrance/entrance-page.svelte';
   import BackendStatusIndicator from '$lib/components/global/infobars/backend-status-indicator.svelte';
+  import BuildCompletionToast from '$lib/components/global/infobars/build-completion-toast.svelte';
   import UpdateNotification from '$lib/components/global/infobars/update-notification.svelte';
   import MainRouter from '$lib/components/global/main-router.svelte';
   import { appLogoType, appLogoURL, appTitle } from '$lib/services/app/branding';
@@ -99,6 +100,7 @@
       <UpdateNotification />
       {#if $backend}
         <BackendStatusIndicator />
+        <BuildCompletionToast />
       {/if}
       <div role="none" class="main">
         <EntrancePage />

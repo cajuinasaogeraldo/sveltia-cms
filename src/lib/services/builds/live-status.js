@@ -8,8 +8,10 @@ import { fetchAPI } from '$lib/services/backends/git/shared/api';
  * @import { Writable } from 'svelte/store';
  */
 
-/** Polling interval for checking live build status (in milliseconds). */
-const POLL_INTERVAL = 30000; // 30 seconds
+/** Polling interval when a build is running (in milliseconds). */
+const POLL_INTERVAL_ACTIVE = 10000; // 10 seconds
+/** Polling interval when no build is running (in milliseconds). */
+const POLL_INTERVAL_IDLE = 30000; // 30 seconds
 /** LocalStorage key for live build state. */
 const LIVE_BUILD_STORAGE_KEY = 'sveltia-cms-live-builds';
 /** Maximum number of builds to store in history. */
@@ -57,10 +59,64 @@ export const isLiveBuildRunning = writable(false);
  */
 export const isPollingLiveBuilds = writable(false);
 
+/**
+ * Notifies when a build completes (successfully or with failure).
+ * Emits the completed build object.
+ * @type {Writable<LiveBuild | null>}
+ */
+export const buildCompletedNotification = writable(null);
+
 /** @type {number | null} */
 let pollIntervalId = null;
 /** @type {boolean} */
 let isPageVisible = true;
+/** @type {NodeJS.Timeout | null} */
+let pollTimeoutId = null;
+
+/**
+ * Get the appropriate polling interval based on current state.
+ * @returns {number} Polling interval in milliseconds.
+ */
+const getPollInterval = () => {
+  const running = get(isLiveBuildRunning);
+  return running ? POLL_INTERVAL_ACTIVE : POLL_INTERVAL_IDLE;
+};
+
+/**
+ * Watch for build state changes and reschedule polling if needed.
+ */
+isLiveBuildRunning.subscribe((running) => {
+  if (get(isPollingLiveBuilds)) {
+    // Reschedule with new interval
+    scheduleNextPoll();
+  }
+});
+
+/**
+ * Schedule the next poll with dynamic interval.
+ */
+const scheduleNextPoll = () => {
+  // Clear any existing timeout
+  if (pollTimeoutId) {
+    clearTimeout(pollTimeoutId);
+  }
+
+  // Only schedule if we should be polling
+  if (!get(isPollingLiveBuilds)) {
+    return;
+  }
+
+  const interval = getPollInterval();
+
+  pollTimeoutId = window.setTimeout(async () => {
+    await pollLiveBuilds();
+
+    // Schedule next poll with (potentially new) interval
+    if (get(isPollingLiveBuilds)) {
+      scheduleNextPoll();
+    }
+  }, interval);
+};
 /**
  * Get the storage key for live builds.
  * @returns {string} Storage key.
@@ -136,8 +192,8 @@ const fetchWorkflowRuns = async () => {
   const { owner, repo } = repository;
 
   try {
-    // Fetch workflow runs for push events on main/master branch
-    const query = `branch=main&event=push&per_page=${MAX_BUILD_HISTORY}`;
+    // Fetch workflow runs for the main/master branch (all event types: push, dispatch, etc.)
+    const query = `branch=main&per_page=${MAX_BUILD_HISTORY}`;
 
     const result = /** @type {{ workflow_runs: any[] }} */ (
       await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${query}`)
@@ -145,7 +201,7 @@ const fetchWorkflowRuns = async () => {
 
     if (!result.workflow_runs?.length) {
       // Try master branch if main has no runs
-      const masterQuery = `branch=master&event=push&per_page=${MAX_BUILD_HISTORY}`;
+      const masterQuery = `branch=master&per_page=${MAX_BUILD_HISTORY}`;
 
       const masterResult = /** @type {{ workflow_runs: any[] }} */ (
         await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${masterQuery}`)
@@ -176,6 +232,10 @@ const updateBuildState = (runs) => {
     return;
   }
 
+  // Get previous state to detect build completion
+  const prevState = get(liveBuildState);
+  const previousRunningBuildId = prevState.currentBuild?.id ?? null;
+
   // Find currently running build (queued or in_progress)
   const currentBuild = runs.find((run) => run.status === 'queued' || run.status === 'in_progress');
 
@@ -193,6 +253,16 @@ const updateBuildState = (runs) => {
   liveBuildState.set(newState);
   isLiveBuildRunning.set(!!currentBuild);
   saveToStorage(newState);
+
+  // Detect if a previously running build has completed
+  if (previousRunningBuildId && !currentBuild) {
+    const completedBuild = completedBuilds.find((run) => run.id === previousRunningBuildId);
+
+    if (completedBuild) {
+      // Notify that the build completed
+      buildCompletedNotification.set(completedBuild);
+    }
+  }
 };
 
 /**
@@ -235,7 +305,7 @@ export const loadInitialState = () => {
 
 /**
  * Start polling for live builds.
- * Should be called when the popup menu is opened.
+ * Should be called when the popup menu is opened or when a build is running.
  */
 export const startLiveBuildPolling = () => {
   if (!isGitHubBackend()) {
@@ -243,7 +313,7 @@ export const startLiveBuildPolling = () => {
   }
 
   // Don't start if already polling
-  if (pollIntervalId !== null) {
+  if (pollTimeoutId !== null) {
     return;
   }
 
@@ -253,10 +323,10 @@ export const startLiveBuildPolling = () => {
   document.addEventListener('visibilitychange', handleVisibilityChange);
 
   // Initial poll
-  pollLiveBuilds();
-
-  // Start polling interval
-  pollIntervalId = window.setInterval(pollLiveBuilds, POLL_INTERVAL);
+  pollLiveBuilds().then(() => {
+    // Schedule subsequent polls
+    scheduleNextPoll();
+  });
 };
 
 /**
@@ -264,6 +334,11 @@ export const startLiveBuildPolling = () => {
  * Should be called on user logout.
  */
 export const stopLiveBuildPolling = () => {
+  if (pollTimeoutId !== null) {
+    clearTimeout(pollTimeoutId);
+    pollTimeoutId = null;
+  }
+
   if (pollIntervalId !== null) {
     clearInterval(pollIntervalId);
     pollIntervalId = null;
@@ -272,7 +347,7 @@ export const stopLiveBuildPolling = () => {
   document.removeEventListener('visibilitychange', handleVisibilityChange);
 
   isPollingLiveBuilds.set(false);
-  isLiveBuildRunning.set(false);
+  // Don't reset isLiveBuildRunning here - let it be determined by actual build state
 };
 
 /**
