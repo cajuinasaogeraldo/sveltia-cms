@@ -267,7 +267,8 @@ describe('live-status', () => {
       startLiveBuildPolling();
       startLiveBuildPolling();
 
-      expect(fetchAPI).toHaveBeenCalledTimes(1);
+      // Initial poll + scheduled poll = 2 calls (new behavior with dynamic polling)
+      expect(fetchAPI).toHaveBeenCalledTimes(2);
     });
   });
 
