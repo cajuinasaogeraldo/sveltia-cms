@@ -47,6 +47,22 @@ import { isMultiple } from '$lib/services/integrations/media-libraries/shared';
 export const fieldConfigCacheMap = new Map();
 
 /**
+ * Check if the given fields contain a single List or KeyValue field with the `root` option enabled.
+ * @param {Field[]} fields Field list.
+ * @param {'list' | 'keyvalue'} fieldType Field type to check.
+ * @returns {boolean} Result.
+ */
+export const hasRootField = (fields, fieldType) => {
+  if (fields.length !== 1) {
+    return false;
+  }
+
+  const [field] = fields;
+
+  return field.widget === fieldType && 'root' in field && field.root === true;
+};
+
+/**
  * Check if multi selection is enabled for the given field configuration.
  * @param {Field} fieldConfig Field configuration.
  * @returns {boolean} Result.
@@ -305,7 +321,6 @@ export const getFieldDisplayValue = ({
     if (!transformations?.some((tf) => DATE_TRANSFORMATION_REGEX.test(tf))) {
       value = getDateTimeFieldDisplayValue({
         locale,
-        // eslint-disable-next-line object-shorthand
         fieldConfig: /** @type {DateTimeField} */ (fieldConfig),
         currentValue: value,
       });
@@ -314,7 +329,6 @@ export const getFieldDisplayValue = ({
 
   if (fieldConfig?.widget === 'relation') {
     value = getReferencedOptionLabel({
-      // eslint-disable-next-line object-shorthand
       fieldConfig: /** @type {RelationField} */ (fieldConfig),
       valueMap,
       keyPath,
@@ -324,7 +338,6 @@ export const getFieldDisplayValue = ({
 
   if (fieldConfig?.widget === 'select') {
     value = getOptionLabel({
-      // eslint-disable-next-line object-shorthand
       fieldConfig: /** @type {SelectField} */ (fieldConfig),
       valueMap,
       keyPath,
@@ -462,7 +475,6 @@ export const getPropertyValue = ({ entry, locale, collectionName, key, resolveRe
     // Resolve the displayed value for a relation field
     if (fieldConfig?.widget === 'relation') {
       return getReferencedOptionLabel({
-        // eslint-disable-next-line object-shorthand
         fieldConfig: /** @type {RelationField} */ (fieldConfig),
         valueMap: content,
         keyPath: key,

@@ -2,7 +2,7 @@ import { stripSlashes } from '@sveltia/utils/string';
 import { get } from 'svelte/store';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { getPatURL, signIn, signOut } from '$lib/services/backends/git/gitlab/auth';
+import { getTokenPageURL, signIn, signOut } from '$lib/services/backends/git/gitlab/auth';
 import { commitChanges } from '$lib/services/backends/git/gitlab/commits';
 import { BACKEND_LABEL, BACKEND_NAME } from '$lib/services/backends/git/gitlab/constants';
 import { fetchBlob, fetchFiles } from '$lib/services/backends/git/gitlab/files';
@@ -20,7 +20,7 @@ vi.mock('svelte/store', () => ({
   readonly: vi.fn(() => ({ subscribe: vi.fn() })),
 }));
 vi.mock('$lib/services/backends/git/gitlab/auth', () => ({
-  getPatURL: vi.fn(),
+  getTokenPageURL: vi.fn(),
   signIn: vi.fn(),
   signOut: vi.fn(),
 }));
@@ -60,7 +60,7 @@ describe('GitLab backend service', () => {
       treeBaseURL: 'https://gitlab.com/owner/repo/-/tree/main',
       blobBaseURL: 'https://gitlab.com/owner/repo/-/blob/main',
     });
-    vi.mocked(getPatURL).mockReturnValue(
+    vi.mocked(getTokenPageURL).mockReturnValue(
       'https://gitlab.com/-/user_settings/personal_access_tokens?name=Sveltia+CMS&scopes=api%2Cread_user',
     );
 
@@ -97,7 +97,7 @@ describe('GitLab backend service', () => {
           repo: 'repo',
           branch: 'main',
           repoURL: 'https://gitlab.com/owner/repo',
-          newPatURL:
+          tokenPageURL:
             'https://gitlab.com/-/user_settings/personal_access_tokens?name=Sveltia+CMS&scopes=api%2Cread_user',
           databaseName: 'gitlab:owner/repo',
           isSelfHosted: false,
@@ -148,7 +148,7 @@ describe('GitLab backend service', () => {
           repo: 'project',
           branch: 'develop',
           repoURL: 'https://custom-gitlab.com/group/subgroup/project',
-          newPatURL:
+          tokenPageURL:
             'https://gitlab.com/-/user_settings/personal_access_tokens?name=Sveltia+CMS&scopes=api%2Cread_user',
           databaseName: 'gitlab:group/subgroup/project',
           isSelfHosted: true,

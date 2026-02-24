@@ -36,10 +36,11 @@ describe('Test getEntrySummary()', () => {
         i18nSingleFile: false,
         i18nMultiFile: true,
         i18nMultiFolder: false,
-        i18nRootMultiFolder: false,
+        i18nMultiRootFolder: false,
       },
       canonicalSlug: { key: 'translationKey', value: '{{slug}}' },
-      omitDefaultLocaleFromFileName: false,
+      omitDefaultLocaleFromFilePath: false,
+      omitDefaultLocaleFromPreviewPath: false,
     },
     _thumbnailFieldNames: [],
   };
@@ -85,6 +86,58 @@ describe('Test getEntrySummary()', () => {
     expect(format('{{dirname}}')).toEqual('net');
     expect(format('{{filename}}')).toEqual('index');
     expect(format('{{extension}}')).toEqual('md');
+  });
+
+  test('locales tag', () => {
+    expect(format('{{locales}}')).toEqual('de');
+  });
+
+  test('locales tag with multiple locales', () => {
+    const multiLocaleEntry = {
+      ...entry,
+      locales: {
+        de: entry.locales.de,
+        en: {
+          ...entry.locales.de,
+          path: 'content/tags/net/index.en.md',
+        },
+        fr: {
+          ...entry.locales.de,
+          path: 'content/tags/net/index.fr.md',
+        },
+      },
+    };
+
+    const result = getEntrySummary({ ...collection, summary: '{{locales}}' }, multiLocaleEntry, {
+      locale: 'de',
+      useTemplate: true,
+    });
+
+    expect(result).toEqual('de, en, fr');
+  });
+
+  test('locales tag in combination with other metadata', () => {
+    const multiLocaleEntry = {
+      ...entry,
+      locales: {
+        de: entry.locales.de,
+        en: {
+          ...entry.locales.de,
+          path: 'content/tags/net/index.en.md',
+        },
+      },
+    };
+
+    const result = getEntrySummary(
+      { ...collection, summary: '{{slug}} [{{locales}}]' },
+      multiLocaleEntry,
+      {
+        locale: 'de',
+        useTemplate: true,
+      },
+    );
+
+    expect(result).toEqual('net [de, en]');
   });
 
   test('fields', () => {
@@ -302,10 +355,11 @@ describe('Test sanitizeEntrySummary()', () => {
           i18nSingleFile: false,
           i18nMultiFile: true,
           i18nMultiFolder: false,
-          i18nRootMultiFolder: false,
+          i18nMultiRootFolder: false,
         },
         canonicalSlug: { key: 'slug', value: '{{slug}}' },
-        omitDefaultLocaleFromFileName: false,
+        omitDefaultLocaleFromFilePath: false,
+        omitDefaultLocaleFromPreviewPath: false,
       },
       _thumbnailFieldNames: [],
     };
@@ -442,6 +496,7 @@ describe('Test replaceSub()', () => {
     slug: 'test-entry',
     entryPath: 'content/posts/2024/test-entry.md',
     basePath: 'content/posts',
+    locales: ['en', 'de'],
     commitDate: new Date('2024-01-15T10:30:00Z'),
     commitAuthor: {
       name: 'John Doe',
@@ -454,6 +509,34 @@ describe('Test replaceSub()', () => {
     const result = replaceSub('slug', context);
 
     expect(result).toBe('test-entry');
+  });
+
+  test('should replace locales tag', () => {
+    const result = replaceSub('locales', context);
+
+    expect(result).toBe('de, en');
+  });
+
+  test('should replace locales tag with single locale', () => {
+    const contextWithSingleLocale = {
+      ...context,
+      locales: ['en'],
+    };
+
+    const result = replaceSub('locales', contextWithSingleLocale);
+
+    expect(result).toBe('en');
+  });
+
+  test('should replace locales tag with multiple locales', () => {
+    const contextWithManyLocales = {
+      ...context,
+      locales: ['en', 'de', 'fr', 'ja', 'es'],
+    };
+
+    const result = replaceSub('locales', contextWithManyLocales);
+
+    expect(result).toBe('de, en, es, fr, ja');
   });
 
   test('should replace dirname tag', () => {
@@ -527,6 +610,7 @@ describe('Test replaceSub()', () => {
       slug: 'test-entry',
       entryPath: 'content/posts/test-entry.md',
       basePath: 'content/posts',
+      locales: ['en'],
       commitDate: undefined,
       commitAuthor: undefined,
     };
@@ -540,6 +624,7 @@ describe('Test replaceSub()', () => {
       slug: 'test-entry',
       entryPath: 'content/posts/test-entry.md',
       basePath: 'content/posts',
+      locales: ['en'],
       commitDate: new Date('2024-01-15T10:30:00Z'),
       commitAuthor: {
         name: '',
@@ -558,6 +643,7 @@ describe('Test replaceSub()', () => {
       slug: 'test-entry',
       entryPath: 'content/posts/test-entry.md',
       basePath: 'content/posts',
+      locales: ['en'],
       commitDate: new Date('2024-01-15T10:30:00Z'),
       commitAuthor: {
         name: '',
@@ -579,6 +665,7 @@ describe('Test replaceSub()', () => {
       slug: 'test-entry',
       entryPath: 'content/posts/blog/article.md',
       basePath: 'content/posts',
+      locales: ['en', 'fr'],
       commitDate: new Date('2024-01-15T10:30:00Z'),
       commitAuthor: { name: 'John Doe', login: 'john', email: 'john@test.com' },
     };
@@ -597,6 +684,7 @@ describe('Test replaceSub()', () => {
       slug: 'test-entry',
       entryPath: 'content/posts/article.md',
       basePath: 'content/posts',
+      locales: ['en'],
       commitDate: new Date('2024-01-15T10:30:00Z'),
       commitAuthor: { name: 'John Doe', login: 'john', email: 'john@test.com' },
     };
@@ -615,6 +703,7 @@ describe('Test replaceSub()', () => {
       slug: 'test-entry',
       entryPath: 'content/posts/article.md',
       basePath: undefined,
+      locales: ['en'],
       commitDate: new Date('2024-01-15T10:30:00Z'),
       commitAuthor: { name: 'John Doe', login: 'john', email: 'john@test.com' },
     };
@@ -630,12 +719,13 @@ describe('Test replaceSub()', () => {
   test('should handle dirname when dirPath starts with basePath but not with prefix (line 113 else if branch)', () => {
     // This specifically tests the else if branch on line 113
     // We need dirPath that starts with basePath but NOT with prefix (basePath + '/')
-    // Example: basePath='content/posts', dirPath='content/posts-backup/'
+    // Example: basePath='content/posts', dirPath='content/posts-backup/index/'
     // prefix would be 'content/posts/', but dirPath starts with 'content/posts-'
     const contextEdgeCase = {
       slug: 'test-entry',
       entryPath: 'content/posts-backup/index/test-entry.md',
       basePath: 'content/posts', // basePath without slash
+      locales: ['en', 'de', 'fr'],
       commitDate: new Date('2024-01-15T10:30:00Z'),
       commitAuthor: { name: 'John Doe', login: 'john', email: 'john@test.com' },
     };
@@ -659,6 +749,7 @@ describe('Test replaceSub()', () => {
       slug: 'test-entry',
       entryPath: 'content/posts/index/test-entry.md',
       basePath: 'other', // Doesn't match dirPath at all
+      locales: ['en'],
       commitDate: new Date('2024-01-15T10:30:00Z'),
       commitAuthor: { name: 'John Doe', login: 'john', email: 'john@test.com' },
     };
@@ -678,6 +769,7 @@ describe('Test replaceSub()', () => {
       slug: 'entry',
       entryPath: 'posts-archive/2024/entry.md',
       basePath: 'posts', // Substring that matches without the slash
+      locales: ['en', 'es'],
       commitDate: new Date('2024-01-15T10:30:00Z'),
       commitAuthor: { name: 'John Doe', login: 'john', email: 'john@test.com' },
     };
@@ -699,6 +791,7 @@ describe('Test replaceSub()', () => {
       slug: 'test-entry',
       entryPath: 'content/posts/2024/test-entry.md',
       basePath: 'content/posts/', // basePath with trailing slash
+      locales: ['en', 'de'],
       commitDate: new Date('2024-01-15T10:30:00Z'),
       commitAuthor: { name: 'John Doe', login: 'john', email: 'john@test.com' },
     };
@@ -727,6 +820,7 @@ describe('Test replace()', () => {
       slug: 'test-entry',
       entryPath: 'content/posts/test-entry.md',
       basePath: 'content/posts',
+      locales: ['en', 'de'],
       commitDate: new Date('2024-01-15T10:30:00Z'),
       commitAuthor: {
         name: 'John Doe',
@@ -852,6 +946,9 @@ describe('Test replace()', () => {
         published: true,
         publishDate: dateValue,
       },
+      replaceSubContext: {
+        ...context.replaceSubContext,
+      },
     };
 
     // Test ternary transformation
@@ -874,6 +971,7 @@ describe('Test replace()', () => {
       ...context,
       replaceSubContext: {
         ...context.replaceSubContext,
+        locales: ['en', 'de'],
         commitDate: new Date('2024-12-25T12:00:00Z'),
       },
     };
@@ -896,7 +994,10 @@ describe('Test replace()', () => {
         // Empty, no 'missingField'
       },
       collectionName: 'posts',
-      replaceSubContext: context.replaceSubContext,
+      replaceSubContext: {
+        ...context.replaceSubContext,
+        locales: ['en'],
+      },
       defaultLocale: 'en',
     };
 
@@ -917,6 +1018,9 @@ describe('Test replace()', () => {
         ...context.content,
         pubDate: dateValue,
       },
+      replaceSubContext: {
+        ...context.replaceSubContext,
+      },
     };
 
     // Test with date transformation
@@ -934,6 +1038,9 @@ describe('Test replace()', () => {
       content: {
         ...context.content,
         eventDate: new Date('2024-01-15T10:30:00Z'),
+      },
+      replaceSubContext: {
+        ...context.replaceSubContext,
       },
     };
 
@@ -997,6 +1104,7 @@ describe('Additional comprehensive tests for edge cases', () => {
       slug: 'my-entry',
       entryPath: 'content/blog/2024/01/15/my-entry.md',
       basePath: 'content/blog',
+      locales: ['en', 'ja'],
       commitDate: undefined,
       commitAuthor: undefined,
     };
@@ -1011,6 +1119,7 @@ describe('Additional comprehensive tests for edge cases', () => {
       slug: 'my-entry',
       entryPath: 'content/blog/post/my-entry.md',
       basePath: 'content/blog/',
+      locales: ['en'],
       commitDate: undefined,
       commitAuthor: undefined,
     };
@@ -1027,6 +1136,7 @@ describe('Additional comprehensive tests for edge cases', () => {
       slug: 'my-entry',
       entryPath: 'content/content/posts/my-entry.md',
       basePath: 'content',
+      locales: ['en'],
       commitDate: undefined,
       commitAuthor: undefined,
     };
@@ -1047,6 +1157,7 @@ describe('Additional comprehensive tests for edge cases', () => {
       slug: 'entry',
       entryPath: 'content/blog/entry.md',
       basePath: 'content/blog',
+      locales: ['en'],
       commitDate: undefined,
       commitAuthor: undefined,
     };
@@ -1068,6 +1179,7 @@ describe('Additional comprehensive tests for edge cases', () => {
       slug: 'entry',
       entryPath: 'content/blogpost/entry.md',
       basePath: 'content/blog',
+      locales: ['en', 'de'],
       commitDate: undefined,
       commitAuthor: undefined,
     };
@@ -1088,6 +1200,7 @@ describe('Additional comprehensive tests for edge cases', () => {
       slug: 'my-entry',
       entryPath: 'my-entry.md',
       basePath: undefined,
+      locales: ['en'],
       commitDate: undefined,
       commitAuthor: undefined,
     };
@@ -1135,10 +1248,11 @@ describe('Additional comprehensive tests for edge cases', () => {
           i18nSingleFile: false,
           i18nMultiFile: true,
           i18nMultiFolder: false,
-          i18nRootMultiFolder: false,
+          i18nMultiRootFolder: false,
         },
         canonicalSlug: { key: 'slug', value: '{{slug}}' },
-        omitDefaultLocaleFromFileName: false,
+        omitDefaultLocaleFromFilePath: false,
+        omitDefaultLocaleFromPreviewPath: false,
       },
       _thumbnailFieldNames: [],
     };
@@ -1174,6 +1288,7 @@ describe('Additional comprehensive tests for edge cases', () => {
         slug: 'test',
         entryPath: 'test.md',
         basePath: 'test',
+        locales: ['en'],
         commitDate: undefined,
         commitAuthor: { name: '', login: '', email: '' },
       },
@@ -1208,6 +1323,7 @@ describe('Additional comprehensive tests for edge cases', () => {
         slug: 'test',
         entryPath: 'test.md',
         basePath: 'test',
+        locales: ['en'],
         commitDate: undefined,
         commitAuthor: undefined,
       },
@@ -1263,6 +1379,7 @@ describe('Additional comprehensive tests for edge cases', () => {
       slug: 'test',
       entryPath: 'content/blog/post/test.md',
       basePath: 'content/',
+      locales: ['en', 'ja'],
       commitDate: undefined,
       commitAuthor: undefined,
     };
@@ -1284,6 +1401,7 @@ describe('Additional comprehensive tests for edge cases', () => {
         slug: 'test-entry',
         entryPath: 'content/posts/test-entry.md',
         basePath: 'content/posts',
+        locales: ['en', 'de'],
         commitDate: new Date('2024-01-15T10:30:00Z'),
         commitAuthor: {
           name: 'John Doe',
@@ -1308,6 +1426,7 @@ describe('Additional comprehensive tests for edge cases', () => {
       slug: 'test-entry',
       entryPath: 'content/posts/test-entry.md',
       basePath: 'content/posts',
+      locales: ['en'],
       commitDate: new Date('2024-01-15T10:30:00Z'),
       commitAuthor: {
         name: '',
@@ -1334,6 +1453,7 @@ describe('Additional comprehensive tests for edge cases', () => {
         slug: 'test-entry',
         entryPath: 'content/posts/test-entry.md',
         basePath: 'content/posts',
+        locales: ['en'],
         commitDate: new Date('2024-01-15T10:30:00Z'),
         commitAuthor: {
           name: 'John Doe',
@@ -1370,10 +1490,11 @@ describe('Additional comprehensive tests for edge cases', () => {
           i18nSingleFile: false,
           i18nMultiFile: true,
           i18nMultiFolder: false,
-          i18nRootMultiFolder: false,
+          i18nMultiRootFolder: false,
         },
         canonicalSlug: { key: 'slug', value: '{{slug}}' },
-        omitDefaultLocaleFromFileName: false,
+        omitDefaultLocaleFromFilePath: false,
+        omitDefaultLocaleFromPreviewPath: false,
       },
       _thumbnailFieldNames: [],
       summary: '{{commit_date}}',

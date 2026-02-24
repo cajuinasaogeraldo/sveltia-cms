@@ -12,6 +12,11 @@ import { getLocalePath } from '$lib/services/contents/i18n';
  */
 
 /**
+ * Regex to match escaped `{{variable}}` placeholders.
+ */
+export const ESCAPED_PLACEHOLDER_REGEX = /\\\{\\\{.+?\\\}\\\}/g;
+
+/**
  * @type {Map<string, CustomFileFormat>}
  */
 export const customFileFormatRegistry = new Map();
@@ -23,6 +28,7 @@ export const customFileFormatRegistry = new Map();
  * @param {FileFormat} [args.format] Developer-defined file format.
  * @returns {FileExtension} Determined extension.
  * @see https://decapcms.org/docs/configuration-options/#extension-and-format
+ * @see https://sveltiacms.app/en/docs/collections/entries#file-format-and-extension
  */
 export const detectFileExtension = ({ extension, format }) => {
   const customExtension = format ? customFileFormatRegistry.get(format)?.extension : undefined;
@@ -33,6 +39,10 @@ export const detectFileExtension = ({ extension, format }) => {
 
   if (extension) {
     return extension;
+  }
+
+  if (format === 'raw') {
+    return 'txt';
   }
 
   if (format === 'yaml' || format === 'yml') {
@@ -57,6 +67,7 @@ export const detectFileExtension = ({ extension, format }) => {
  * @param {FileFormat} [args.format] Developer-defined file format.
  * @returns {FileFormat} Determined format.
  * @see https://decapcms.org/docs/configuration-options/#extension-and-format
+ * @see https://sveltiacms.app/en/docs/collections/entries#file-format-and-extension
  */
 export const detectFileFormat = ({ extension, format }) => {
   if (format) {
@@ -83,6 +94,30 @@ export const detectFileFormat = ({ extension, format }) => {
 };
 
 /**
+ * Get the file path matcher pattern for the regex. The path pattern in the middle should match the
+ * filename (without extension), possibly with the parent directory. If the collection's `path` is
+ * configured, use it to generate a pattern, so that unrelated files are excluded. Note that the
+ * `path` may contain `{{variable}}` placeholders, which should be replaced with a non-greedy
+ * wildcard that excludes slashes. It may also contain brackets, like `app/(pages)`, which are used
+ * for route groups in frameworks like SvelteKit or Next.js, and should be matched literally.
+ * @param {string} [subPath] Normalized `path` collection option.
+ * @param {string} [indexFileName] File name for index file inclusion. Typically `_index`.
+ * @returns {string} File path matcher pattern.
+ * @see https://decapcms.org/docs/collection-folder/#folder-collections-path
+ * @see https://sveltiacms.app/en/docs/collections/entries#managing-entry-file-paths
+ */
+const getFilePathMatcher = (subPath, indexFileName) => {
+  if (!subPath) {
+    return '(?<subPath>[^/]+?)';
+  }
+
+  const escapedSubPath = escapeRegExp(subPath).replace(ESCAPED_PLACEHOLDER_REGEX, '[^/]+?');
+  const indexFileAlternative = indexFileName ? `|${indexFileName}` : '';
+
+  return `(?<subPath>${escapedSubPath}${indexFileAlternative})`;
+};
+
+/**
  * Get a regular expression that matches the entry paths of the given entry collection, taking the
  * i18n structure into account.
  * @param {object} args Arguments.
@@ -105,35 +140,28 @@ export const getEntryPathRegEx = ({
   const {
     allLocales,
     defaultLocale,
-    omitDefaultLocaleFromFileName,
-    structureMap: { i18nMultiFile, i18nMultiFolder, i18nRootMultiFolder },
+    omitDefaultLocaleFromFilePath,
+    structureMap: { i18nMultiFile, i18nMultiFolder, i18nMultiRootFolder },
   } = _i18n;
 
-  /**
-   * The path pattern in the middle, which should match the filename (without extension),
-   * possibly with the parent directory. If the collection’s `path` is configured, use it to
-   * generate a pattern, so that unrelated files are excluded.
-   * @see https://decapcms.org/docs/collection-folder/#folder-collections-path
-   */
-  const filePathMatcher = subPath
-    ? `(?<subPath>${subPath
-        .replace(/\//g, '\\/')
-        .replace(/{{.+?}}/g, '[^/]+?')}${indexFileName ? `|${indexFileName}` : ''})`
-    : '(?<subPath>[^/]+?)';
-
   const localeMatcher = `(?<locale>${allLocales.join('|')})`;
+  const joinedNonDefaultLocales = allLocales.filter((locale) => locale !== defaultLocale).join('|');
+
+  const localeFolderMatcher = omitDefaultLocaleFromFilePath
+    ? `(?:(?<locale>${joinedNonDefaultLocales})\\/)?`
+    : `${localeMatcher}\\/`;
+
+  const localeFileMatcher = omitDefaultLocaleFromFilePath
+    ? `(?:\\.(?<locale>${joinedNonDefaultLocales}))?`
+    : `\\.${localeMatcher}`;
 
   const pattern = [
     '^',
-    i18nRootMultiFolder ? `${localeMatcher}\\/` : '',
+    i18nMultiRootFolder ? localeFolderMatcher : '',
     basePath ? `${escapeRegExp(basePath)}\\/` : '',
-    i18nMultiFolder ? `${localeMatcher}\\/` : '',
-    filePathMatcher,
-    i18nMultiFile
-      ? omitDefaultLocaleFromFileName
-        ? `(?:\\.(?<locale>${allLocales.filter((locale) => locale !== defaultLocale).join('|')}))?`
-        : `\\.${localeMatcher}`
-      : '',
+    i18nMultiFolder ? localeFolderMatcher : '',
+    getFilePathMatcher(subPath, indexFileName),
+    i18nMultiFile ? localeFileMatcher : '',
     '\\.',
     detectFileExtension({ format, extension }),
     '$',
@@ -150,6 +178,7 @@ export const getEntryPathRegEx = ({
  * @returns {[string, string] | undefined} Start and end delimiters. If `undefined`, the parser
  * automatically detects the delimiters, while the formatter uses the YAML delimiters.
  * @see https://decapcms.org/docs/configuration-options/#frontmatter_delimiter
+ * @see https://sveltiacms.app/en/docs/collections/entries#front-matter-delimiter
  */
 export const getFrontMatterDelimiters = ({ format, delimiter }) => {
   if (typeof delimiter === 'string' && delimiter.trim()) {

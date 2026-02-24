@@ -13,13 +13,14 @@
 
   /**
    * @import { Asset, AssetKind, Entry } from '$lib/types/private';
+   * @import { MediaField } from '$lib/types/public';
    */
 
   /**
    * @typedef {object} Props
    * @property {string} value The file value (URL, blob URL, or file path).
    * @property {string} fieldId The field ID for accessibility.
-   * @property {string} fieldType The field type for i18n.
+   * @property {MediaField} fieldConfig Field configuration.
    * @property {boolean} readonly Whether the field is readonly.
    * @property {boolean} invalid Whether the field is invalid.
    * @property {boolean} required Whether the field is required.
@@ -36,7 +37,7 @@
   const {
     value,
     fieldId,
-    fieldType,
+    fieldConfig,
     readonly = false,
     invalid = false,
     required = false,
@@ -58,6 +59,7 @@
   /** @type {string | undefined} */
   let src = $state();
 
+  const { widget: fieldType } = $derived(fieldConfig);
   const isImageField = $derived(fieldType === 'image');
 
   /**
@@ -74,7 +76,9 @@
     }
 
     if (file) {
-      const { publicPath, entryRelative, hasTemplateTags } = $entryDraft?.files[value].folder ?? {};
+      const { publicPath, entryRelative, hasTemplateTags } =
+        $entryDraft?.files[value]?.folder ?? {};
+
       const _folder = entryRelative || hasTemplateTags ? '' : publicPath || '';
 
       return createPath([_folder, decodeURI(file.name.normalize())]);
@@ -86,6 +90,7 @@
       // Truncate query string for display. This is mainly for Unsplash URLs which have a long query
       // string for image parameters.
       if (isURL(decodedValue)) {
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
         const url = new URL(decodedValue);
 
         if (url.search) {
@@ -109,23 +114,23 @@
       file = $entryDraft.files[value]?.file;
     }
 
+    // Update the `src` when an asset is selected
     if (value) {
-      const getURLArgs = { value, entry, collectionName, fileName };
+      const getURLArgs = { value, entry, collectionName, fileName, fieldConfig };
 
-      // Update the `src` when an asset is selected
-      if (value.startsWith('blob:')) {
-        asset = undefined;
-        kind = value ? await getMediaKind(value) : undefined;
-        src =
-          value && kind ? await getMediaFieldURL({ ...getURLArgs, thumbnail: true }) : undefined;
-      } else if (isImageField && /^https?:/.test(value)) {
+      if (isImageField && /^https?:/.test(value)) {
         asset = undefined;
         kind = 'image';
         src = value;
-      } else {
+      } else if (!value.startsWith('blob:')) {
         asset = getAssetByPath({ ...getURLArgs });
         kind = undefined;
         src = undefined;
+      }
+
+      if (!asset && !src) {
+        kind = await getMediaKind(value);
+        src = kind ? await getMediaFieldURL({ ...getURLArgs, thumbnail: true }) : undefined;
       }
     } else {
       // Remove properties after the value is removed
@@ -259,6 +264,10 @@
             font-size: 64px;
           }
         }
+      }
+
+      .sui.button.tertiary.small {
+        margin: var(--sui-focus-ring-width);
       }
     }
 

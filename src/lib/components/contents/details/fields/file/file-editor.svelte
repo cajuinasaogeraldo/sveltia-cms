@@ -3,6 +3,8 @@
   Implement the editor for the File and Image field types.
   @see https://decapcms.org/docs/widgets/#File
   @see https://decapcms.org/docs/widgets/#Image
+  @see https://sveltiacms.app/en/docs/fields/file
+  @see https://sveltiacms.app/en/docs/fields/image
 -->
 <script>
   import { AlertDialog, ConfirmationDialog, TextArea } from '@sveltia/ui';
@@ -97,7 +99,7 @@
         !['rich-text-editor-component', 'single-subfield-list-field'].includes(fieldContext)),
   );
   const itemArgs = $derived({
-    fieldType,
+    fieldConfig,
     readonly,
     invalid,
     required,

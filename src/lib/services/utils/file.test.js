@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 
+import { ESCAPED_PLACEHOLDER_REGEX } from '$lib/services/contents/file/config';
 import {
   createPath,
   createPathRegEx,
@@ -544,7 +545,8 @@ describe('Test createPathRegEx()', () => {
     const regex = createPathRegEx('folder/file.txt', (segment) => segment);
 
     expect(regex.test('folder/file.txt')).toBe(true);
-    expect(regex.test('folder/file.txt ')).toBe(true); // \b allows whitespace after
+    expect(regex.test('folder/file.txt/')).toBe(true); // Allows slash after
+    expect(regex.test('folder/file.txt ')).toBe(false); // Doesn't allow whitespace
     expect(regex.test('other/file.txt')).toBe(false);
   });
 
@@ -577,12 +579,12 @@ describe('Test createPathRegEx()', () => {
     expect(regex.test('folder/fileXtxt')).toBe(false);
   });
 
-  test('should use word boundary at the end', () => {
+  test('should allow trailing slash or end of string', () => {
     const regex = createPathRegEx('folder/prefix', (segment) => segment);
 
     expect(regex.test('folder/prefix')).toBe(true);
-    expect(regex.test('folder/prefix-more')).toBe(true); // Word boundary allows this
-    expect(regex.test('folder/prefixabc')).toBe(false); // No word boundary between x and a
+    expect(regex.test('folder/prefix/')).toBe(true);
+    expect(regex.test('folder/prefix-more')).toBe(false); // No match without slash or end
     expect(regex.test('other/prefix')).toBe(false);
   });
 
@@ -600,7 +602,33 @@ describe('Test createPathRegEx()', () => {
     const regex = createPathRegEx('a/b/c/d/e', (segment) => segment);
 
     expect(regex.test('a/b/c/d/e')).toBe(true);
-    expect(regex.test('a/b/c/d/e/f')).toBe(true);
+    expect(regex.test('a/b/c/d/e/')).toBe(true);
+    expect(regex.test('a/b/c/d/e/f')).toBe(true); // Matches because of trailing slash option
     expect(regex.test('a/b/c/d')).toBe(false);
+  });
+
+  test('should handle brackets in path', () => {
+    const regex = createPathRegEx('app/(pages)/index.md', (segment) =>
+      segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+    );
+
+    expect(regex.test('app/(pages)/index.md')).toBe(true);
+    expect(regex.test('app/(pages)/index.md/')).toBe(true);
+    expect(regex.test('app/pages/index.md')).toBe(false);
+  });
+
+  test('should handle brackets with template tags', () => {
+    const regex = createPathRegEx('app/(pages)/{{slug}}.md', (segment) => {
+      // First escape special regex chars including parentheses
+      let escaped = segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Then replace escaped template placeholders with wildcard
+      escaped = escaped.replace(ESCAPED_PLACEHOLDER_REGEX, '.+?');
+      return escaped;
+    });
+
+    expect(regex.test('app/(pages)/my-post.md')).toBe(true);
+    expect(regex.test('app/(pages)/another.md')).toBe(true);
+    expect(regex.test('app/pages/my-post.md')).toBe(false);
   });
 });

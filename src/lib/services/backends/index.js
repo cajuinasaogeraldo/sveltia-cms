@@ -16,6 +16,7 @@ import gitlab from '$lib/services/backends/git/gitlab';
  * List of all the supported backend services.
  * @type {Record<string, BackendService>}
  * @see https://decapcms.org/docs/backends-overview/
+ * @see https://sveltiacms.app/en/docs/backends
  */
 export const allBackendServices = {
   github,
@@ -23,6 +24,18 @@ export const allBackendServices = {
   gitea,
   local,
   'test-repo': test,
+};
+
+/**
+ * List of backend services that are implemented in Netlify/Decap CMS but are not supported in
+ * Sveltia CMS for performance and/or deprecation reasons.
+ * @type {Record<string, { label: string }>}
+ * @see https://sveltiacms.app/en/docs/migration/netlify-decap-cms#features-not-to-be-implemented
+ */
+export const unsupportedBackends = {
+  azure: { label: 'Azure DevOps' },
+  bitbucket: { label: 'Bitbucket' },
+  'git-gateway': { label: 'Git Gateway' },
 };
 
 /**

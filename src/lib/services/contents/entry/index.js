@@ -11,7 +11,7 @@ import { cmsConfig } from '$lib/services/config';
 import { getEntryFoldersByPath } from '$lib/services/contents';
 import { getCollection } from '$lib/services/contents/collection';
 import { getIndexFile, isCollectionIndexFile } from '$lib/services/contents/collection/index-file';
-import { getDate } from '$lib/services/contents/fields/date-time/helper';
+import { getDate, isValidDate } from '$lib/services/contents/fields/date-time/helper';
 
 /**
  * @import {
@@ -68,7 +68,7 @@ export const extractDateTime = ({ dateFieldName, fields, content }) => {
   const { picker_utc: utc = false } = config;
   const date = getDate(fieldValue, config);
 
-  if (!date || Number.isNaN(date.getTime())) {
+  if (!isValidDate(date)) {
     return undefined;
   }
 
@@ -92,6 +92,7 @@ export const getEntryPreviewURL = (entry, locale, collection, collectionFile) =>
     preview_path: pathTemplate,
     preview_path_date_field: dateFieldName,
     fields: regularFields = [],
+    _i18n: { defaultLocale, omitDefaultLocaleFromPreviewPath },
   } = collectionFile ?? /** @type {InternalEntryCollection} */ (collection);
 
   if (!showLinks || !baseURL || !entryFilePath || !content || !pathTemplate) {
@@ -113,8 +114,16 @@ export const getEntryPreviewURL = (entry, locale, collection, collectionFile) =>
     }
   }
 
+  let template = pathTemplate;
+
+  // Handle the case where the default locale is omitted from the preview path, ensuring that the
+  // URL is correctly generated without the locale segment for the default locale.
+  if (locale === defaultLocale && omitDefaultLocaleFromPreviewPath) {
+    template = template.replace(/{{locale}}[./]/, '');
+  }
+
   try {
-    const path = fillTemplate(pathTemplate, {
+    const path = fillTemplate(template, {
       type: 'preview_path',
       collection,
       content,

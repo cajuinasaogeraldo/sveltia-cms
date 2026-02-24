@@ -376,6 +376,7 @@ tags:
   - test
   - vitest
 ---
+
 This is the body content of the post.
 `,
     );
@@ -395,6 +396,7 @@ tags:
   - test
   - vitest
 ---
+
 This is the body content of the post.
 `,
     );
@@ -414,6 +416,7 @@ tags:
   - test
   - vitest
 +++
+
 This is the body content of the post.
 `,
     );
@@ -433,6 +436,7 @@ tags:
   - "test"
   - "vitest"
 ---
+
 This is the body content of the post.
 `,
     );
@@ -450,6 +454,7 @@ title = "My Post"
 published = true
 tags = [ "test", "vitest" ]
 ---
+
 This is the body content of the post.
 `,
     );
@@ -467,6 +472,7 @@ title = "My Post"
 published = true
 tags = [ "test", "vitest" ]
 +++
+
 This is the body content of the post.
 `,
     );
@@ -489,6 +495,7 @@ This is the body content of the post.
   ]
 }
 ---
+
 This is the body content of the post.
 `,
     );
@@ -511,6 +518,7 @@ This is the body content of the post.
   ]
 }
 }
+
 This is the body content of the post.
 `,
     );
@@ -536,7 +544,6 @@ This is the body content of the post.
 title: My Post
 published: true
 ---
-
 `,
     );
   });
@@ -551,7 +558,6 @@ published: true
       `---
 title: My Post
 ---
-
 `,
     );
   });
@@ -901,5 +907,53 @@ describe('Test formatEntryFile()', () => {
     // The body property should be removed from the original object
     expect(content).not.toHaveProperty('body');
     expect(content.title).toBe('Test Post');
+  });
+
+  test('formats raw content with string body', async () => {
+    const content = {
+      body: 'This is raw content without any formatting.',
+    };
+
+    const _file = /** @type {FileConfig} */ ({
+      format: /** @type {any} */ ('raw'),
+      extension: 'txt',
+      yamlQuote: false,
+    });
+
+    const result = await formatEntryFile({ content, _file });
+
+    expect(result).toBe('This is raw content without any formatting.\n');
+  });
+
+  test('formats raw content without body property', async () => {
+    const content = {
+      title: 'Test Post',
+    };
+
+    const _file = /** @type {FileConfig} */ ({
+      format: /** @type {any} */ ('raw'),
+      extension: 'txt',
+      yamlQuote: false,
+    });
+
+    const result = await formatEntryFile({ content, _file });
+
+    expect(result).toBe('');
+  });
+
+  test('formats raw content with non-string body', async () => {
+    const content = {
+      body: null,
+    };
+
+    const _file = /** @type {FileConfig} */ ({
+      format: /** @type {any} */ ('raw'),
+      extension: 'txt',
+      yamlQuote: false,
+    });
+
+    const result = await formatEntryFile({ content, _file });
+
+    expect(result).toBe('');
   });
 });

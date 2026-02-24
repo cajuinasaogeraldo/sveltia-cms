@@ -5,7 +5,7 @@ import {
   normalizeGraphQLBaseURL,
   normalizeRestBaseURL,
 } from '$lib/services/backends/git/github/api';
-import { getPatURL, signIn, signOut } from '$lib/services/backends/git/github/auth';
+import { getTokenPageURL, signIn, signOut } from '$lib/services/backends/git/github/auth';
 import { commitChanges } from '$lib/services/backends/git/github/commits';
 import {
   BACKEND_LABEL,
@@ -45,7 +45,9 @@ export const init = () => {
     repo: projectPath,
     branch,
     auth_type: authType = '',
+    // @ts-ignore PKCE is not yet supported
     base_url: authRoot = authType === 'pkce' ? DEFAULT_PKCE_AUTH_ROOT : DEFAULT_AUTH_ROOT,
+    // @ts-ignore PKCE is not yet supported
     auth_endpoint: authPath = authType === 'pkce' ? DEFAULT_PKCE_AUTH_PATH : DEFAULT_AUTH_PATH,
     app_id: clientId = '',
     // GitHub Enterprise Server: https://HOSTNAME/api/v3
@@ -68,7 +70,7 @@ export const init = () => {
       repo,
       branch,
       repoURL,
-      newPatURL: getPatURL(repoURL),
+      tokenPageURL: getTokenPageURL(repoURL),
       databaseName: `${BACKEND_NAME}:${repoPath}`,
       isSelfHosted: restApiRoot !== DEFAULT_API_ROOT,
     }),

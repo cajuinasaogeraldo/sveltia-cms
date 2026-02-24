@@ -42,10 +42,14 @@ words:
   - Flavored
   - Forgejo
   - frontmatter
+  - GHSA
+  - Ghsas
+  - gitdir
   - Gitea
   - goldmark
   - hotlinking
   - hugolify
+  - husenunicorn
   - iarna
   - iccs
   - IIFE
@@ -102,7 +106,6 @@ words:
   - smol
   - strikethrough
   - stylelint
-  - Sveitia
   - sveltejs
   - Sveltia
   - templatized
@@ -124,6 +127,7 @@ words:
   - weba
   - webformat
   - whitespaces
+  - worktree
   - xslx
   - yacosta
   - zanhk

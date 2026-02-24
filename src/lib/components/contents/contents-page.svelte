@@ -52,6 +52,7 @@
     /^\/collections(?:\/(?<_collectionName>[^/]+)(?:\/(?<routeType>new|entries))?(?:\/(?<subPath>.+?))?)?$/;
 
   let isIndexPage = $state(false);
+  let editorLocale = $state();
 
   const MainContent = $derived('files' in ($selectedCollection ?? {}) ? FileList : EntryList);
 
@@ -64,6 +65,10 @@
     const match = path.match(routeRegex);
 
     isIndexPage = false;
+
+    // Set the editor locale if specified in the URL params, e.g., `?_locale=fr`
+    editorLocale = params._locale;
+    delete params._locale;
 
     // `/collections/_singletons` should not be used unless there is only the singleton collection
     if ($selectedCollection?.name === '_singletons' && getValidCollections().length) {
@@ -158,7 +163,7 @@
         });
       }
     } else {
-      // Folder collection
+      // Entry collection
       if (routeType === 'new' && !subPath) {
         createDraft({
           collection,
@@ -288,7 +293,7 @@
   {/snippet}
 </PageContainer>
 
-<ContentDetailsOverlay />
+<ContentDetailsOverlay {editorLocale} />
 
 <Toast bind:show={$contentUpdatesToast.saved}>
   <Alert status="success">

@@ -1,7 +1,13 @@
 import { init as initI18n } from 'svelte-i18n';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { cmsConfig, cmsConfigErrors, cmsConfigVersion, DEV_SITE_URL } from './index.js';
+import {
+  cmsConfig,
+  cmsConfigErrors,
+  cmsConfigLoaded,
+  cmsConfigVersion,
+  DEV_SITE_URL,
+} from './index.js';
 
 // Mock external dependencies
 vi.mock('$lib/services/contents/workflow/actions', () => ({
@@ -76,6 +82,7 @@ vi.mock('$lib/services/backends', () => ({
 vi.mock('svelte-i18n', () => ({
   init: vi.fn().mockResolvedValue({}),
   _: vi.fn(),
+  locale: { subscribe: vi.fn() },
 }));
 
 describe('config/index', () => {
@@ -109,6 +116,100 @@ describe('config/index', () => {
       expect(cmsConfig).toBeDefined();
       expect(cmsConfigErrors).toBeDefined();
       expect(cmsConfigVersion).toBeDefined();
+      expect(cmsConfigLoaded).toBeDefined();
+    });
+
+    describe('cmsConfigLoaded', () => {
+      it('should be exported as a readable store', () => {
+        expect(cmsConfigLoaded).toBeDefined();
+        expect(typeof cmsConfigLoaded).toBe('object');
+        expect(typeof cmsConfigLoaded.subscribe).toBe('function');
+      });
+
+      it('should be false when cmsConfig is undefined and cmsConfigErrors is empty', async () => {
+        cmsConfig.set(undefined);
+        cmsConfigErrors.set([]);
+
+        const loadedState = await new Promise((resolve) => {
+          /* eslint-disable prefer-const */
+          /** @type {() => void} */
+          let unsubscribe;
+
+          unsubscribe = cmsConfigLoaded.subscribe((value) => {
+            unsubscribe?.();
+            resolve(value);
+          });
+        });
+
+        expect(loadedState).toBe(false);
+      });
+
+      it('should be true when cmsConfig is defined', async () => {
+        /** @type {any} */
+        const mockConfig = {
+          backend: { name: 'github', repo: 'owner/repo' },
+          media_folder: 'uploads',
+          collections: [{ name: 'posts', label: 'Posts', folder: 'posts' }],
+        };
+
+        cmsConfig.set(mockConfig);
+        cmsConfigErrors.set([]);
+
+        const loadedState = await new Promise((resolve) => {
+          /* eslint-disable prefer-const */
+          /** @type {() => void} */
+          let unsubscribe;
+
+          unsubscribe = cmsConfigLoaded.subscribe((value) => {
+            unsubscribe?.();
+            resolve(value);
+          });
+        });
+
+        expect(loadedState).toBe(true);
+      });
+
+      it('should be true when cmsConfigErrors has entries', async () => {
+        cmsConfig.set(undefined);
+        cmsConfigErrors.set(['Error 1', 'Error 2']);
+
+        const loadedState = await new Promise((resolve) => {
+          /* eslint-disable prefer-const */
+          /** @type {() => void} */
+          let unsubscribe;
+
+          unsubscribe = cmsConfigLoaded.subscribe((value) => {
+            unsubscribe?.();
+            resolve(value);
+          });
+        });
+
+        expect(loadedState).toBe(true);
+      });
+
+      it('should be true when both cmsConfig and cmsConfigErrors are populated', async () => {
+        /** @type {any} */
+        const mockConfig = {
+          backend: { name: 'github', repo: 'owner/repo' },
+          media_folder: 'uploads',
+        };
+
+        cmsConfig.set(mockConfig);
+        cmsConfigErrors.set(['Some error']);
+
+        const loadedState = await new Promise((resolve) => {
+          /* eslint-disable prefer-const */
+          /** @type {() => void} */
+          let unsubscribe;
+
+          unsubscribe = cmsConfigLoaded.subscribe((value) => {
+            unsubscribe?.();
+            resolve(value);
+          });
+        });
+
+        expect(loadedState).toBe(true);
+      });
     });
   });
 
@@ -209,7 +310,7 @@ describe('config/index', () => {
 
       await initCmsConfig();
 
-      expect(fetchcmsConfigMock).toHaveBeenCalled();
+      expect(fetchcmsConfigMock).toHaveBeenCalledWith();
 
       const config = await new Promise((resolve) => {
         /* eslint-disable prefer-const */
@@ -279,7 +380,7 @@ describe('config/index', () => {
 
       await initCmsConfig(manualConfig);
 
-      expect(fetchcmsConfigMock).toHaveBeenCalled();
+      expect(fetchcmsConfigMock).toHaveBeenCalledWith({ manualInit: true });
 
       const config = await new Promise((resolve) => {
         /* eslint-disable prefer-const */
@@ -319,6 +420,44 @@ describe('config/index', () => {
 
       expect(errors).toBeDefined();
       expect(errors).toContain('config.error.parse_failed');
+    });
+
+    it('should call fetchCmsConfig with manualInit option when merging with explicit load_config_file true', async () => {
+      const { initCmsConfig } = await import('./index.js');
+
+      const fileConfig = {
+        backend: { name: 'github', repo: 'owner/repo' },
+        media_folder: 'uploads',
+        collections: [{ name: 'posts', label: 'Posts', folder: 'posts' }],
+      };
+
+      /** @type {any} */
+      const manualConfig = {
+        backend: { name: 'github', repo: 'different/repo' },
+        load_config_file: true,
+      };
+
+      fetchcmsConfigMock.mockResolvedValue(fileConfig);
+
+      await initCmsConfig(manualConfig);
+
+      expect(fetchcmsConfigMock).toHaveBeenCalledWith({ manualInit: true });
+
+      const config = await new Promise((resolve) => {
+        /* eslint-disable prefer-const */
+        /** @type {() => void} */
+        let unsubscribe;
+
+        unsubscribe = cmsConfig.subscribe((cfg) => {
+          if (cfg) {
+            unsubscribe?.();
+            resolve(cfg);
+          }
+        });
+      });
+
+      expect(config).toBeDefined();
+      expect(config?.backend.repo).toBe('different/repo');
     });
 
     it('should set _siteURL from site_url config', async () => {
@@ -534,6 +673,105 @@ describe('config/index', () => {
 
       expect(errors).toBeDefined();
       expect(errors).toContain('config.error.unexpected');
+    });
+
+    it('should handle folder normalization for root folders', async () => {
+      const { initCmsConfig } = await import('./index.js');
+
+      const mockConfig = {
+        backend: { name: 'github', repo: 'owner/repo' },
+        media_folder: 'uploads',
+        collections: [
+          { name: 'posts', label: 'Posts', folder: '.' },
+          { name: 'pages', label: 'Pages', folder: '/' },
+          { name: 'drafts', label: 'Drafts', folder: 'drafts' },
+        ],
+      };
+
+      fetchcmsConfigMock.mockResolvedValue(mockConfig);
+      getHashMock.mockResolvedValue('test-hash');
+
+      await initCmsConfig();
+
+      const config = await new Promise((resolve) => {
+        /* eslint-disable prefer-const */
+        /** @type {() => void} */
+        let unsubscribe;
+
+        unsubscribe = cmsConfig.subscribe((cfg) => {
+          if (cfg) {
+            unsubscribe?.();
+            resolve(cfg);
+          }
+        });
+      });
+
+      expect(config?.collections?.[0]?.folder).toBe('');
+      expect(config?.collections?.[1]?.folder).toBe('');
+      expect(config?.collections?.[2]?.folder).toBe('drafts');
+    });
+
+    it('should log config to console in dev mode', async () => {
+      const { initCmsConfig } = await import('./index.js');
+      const { get } = await import('svelte/store');
+      const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+      const mockConfig = {
+        backend: { name: 'github', repo: 'owner/repo' },
+        media_folder: 'uploads',
+        collections: [{ name: 'posts', label: 'Posts', folder: 'posts' }],
+      };
+
+      fetchcmsConfigMock.mockResolvedValue(mockConfig);
+      getHashMock.mockResolvedValue('test-hash');
+
+      // Mock get to return devModeEnabled: true for prefs store
+      vi.mocked(get).mockImplementation((store) => {
+        if (store && typeof store === 'function') {
+          return (/** @type {string} */ key) => key;
+        }
+
+        // Return devModeEnabled: true for prefs check
+        return { devModeEnabled: true };
+      });
+
+      await initCmsConfig();
+
+      // Wait for subscription to trigger
+      await new Promise((resolve) => {
+        setTimeout(resolve, 50);
+      });
+
+      // Check that console.info was called with config
+      const calls = consoleSpy.mock.calls.filter(
+        (c) => c[0] === 'cmsConfig' || c[0] === 'allEntryFolders',
+      );
+
+      expect(calls.length).toBeGreaterThan(0);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should log console.warn when config has deprecated/unsupported options', async () => {
+      const { initCmsConfig } = await import('./index.js');
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // `local_backend` is an unsupported option that triggers a warning during parsing
+      const mockConfig = {
+        backend: { name: 'github', repo: 'owner/repo' },
+        media_folder: 'uploads',
+        local_backend: true,
+        collections: [{ name: 'posts', label: 'Posts', folder: 'posts' }],
+      };
+
+      fetchcmsConfigMock.mockResolvedValue(mockConfig);
+      getHashMock.mockResolvedValue('test-hash');
+
+      await initCmsConfig();
+
+      expect(consoleSpy).toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
     });
   });
 });

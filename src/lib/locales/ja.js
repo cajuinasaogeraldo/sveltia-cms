@@ -73,12 +73,13 @@ export const strings = {
   clipboard_error: 'データのコピー中に問題が発生しました。',
 
   // Entrance
-  welcome_to_sveltia_cms: 'Sveltia CMS へようこそ',
+  welcome_message: '{name} へようこそ',
+  powered_by: 'Powered by {name}',
   loading_cms_config: 'CMS 設定を読み込んでいます…',
   loading_site_data: 'サイトデータを読み込んでいます…',
   loading_site_data_error: 'サイトデータの読み込み中にエラーが発生しました。',
   sign_in_with_x: '{service} でログイン',
-  sign_in_with_x_using_pat: '{service} で PAT を使用してログイン',
+  sign_in_with_x_using_token: '{service} でトークンを使用してログイン',
   sign_in_using_pat_title: '個人用アクセストークンでログイン',
   sign_in_using_pat_description:
     '以下にトークンを入力してください。レポジトリコンテンツへの読み取り・書き込みアクセスが必要です。',
@@ -146,11 +147,13 @@ export const strings = {
   keyboard_shortcuts: 'キーボードショートカット',
   documentation: 'ドキュメンテーション',
   release_notes: 'リリースノート',
+  announcements: 'お知らせ',
   version_x: 'バージョン {version}',
   report_issue: '問題を報告',
   share_feedback: 'フィードバックを共有',
   get_help: 'サポート',
   join_discord: 'Discord チャンネルに参加',
+  bluesky: 'Bluesky でフォロー',
 
   // Onboarding
   mobile_promo_title: 'Sveltia CMS がモバイルに対応しました！',
@@ -455,12 +458,14 @@ export const strings = {
   validation: {
     value_missing: 'この項目は必須です。',
     range_underflow: {
+      number: '値は {min} 以上でなければなりません。',
       select_many: '少なくとも {min} 個の項目を選択してください。',
       select_one: '少なくとも {min} 個の項目を選択してください。',
       add_many: '少なくとも {min} 個の項目を追加してください。',
       add_one: '少なくとも {min} 個の項目を追加してください。',
     },
     range_overflow: {
+      number: '値は {max} 以下でなければなりません。',
       select_many: '選択できるのは最大で {max} 項目です。',
       select_one: '選択できるのは最大で {max} 項目です。',
       add_many: '追加できるのは最大で {max} 項目です。',
@@ -475,6 +480,7 @@ export const strings = {
       many: '{max} 文字を超える入力はできません。',
     },
     type_mismatch: {
+      number: '数値を入力してください。',
       email: '正しいメールアドレスを入力してください。',
       url: '正しい URL を入力してください。',
     },
@@ -644,8 +650,14 @@ export const strings = {
     },
     error: {
       no_secure_context: 'Sveltia CMS は HTTPS またはローカルホスト URL でのみ動作します。',
+      insecure_url:
+        '設定ファイルの URL は HTTPS プロトコルまたはローカルホストアドレスを使用する必要があります。',
+      insecure_urls:
+        '設定ファイルの URL は HTTPS プロトコルまたはローカルホストアドレスを使用する必要があります。',
       fetch_failed: '設定ファイルを読み込めませんでした。',
       fetch_failed_not_ok: 'HTTP レスポンスがステータス {status} で返されました。',
+      fetch_failed_with_manual_init:
+        '設定ファイルを取得できませんでした。`config.yml` ファイルの読み込みを防ぐには、`CMS.init()` に渡される設定オブジェクトに [`load_config_file: false`](https://sveltiacms.app/en/docs/api/initialization#providing-a-full-configuration) を追加してください。',
       parse_failed: '設定ファイルを解析できませんでした。',
       parse_failed_invalid_object: '設定ファイルが有効な JavaScript オブジェクトではありません。',
       parse_failed_unsupported_type:
@@ -653,11 +665,19 @@ export const strings = {
       no_collection: 'コレクションが定義されていません。',
       missing_backend: 'バックエンドが定義されていません。',
       missing_backend_name: 'バックエンド名が定義されていません。',
-      unsupported_backend: '設定されている「{name}」バックエンドは非対応です。',
+      unsupported_known_backend:
+        '{name} バックエンドは Sveltia CMS では [非対応です](https://sveltiacms.app/en/docs/migration/netlify-decap-cms#features-not-to-be-implemented)。',
+      unsupported_custom_backend:
+        'カスタムバックエンドは Sveltia CMS では [非対応です](https://sveltiacms.app/en/docs/migration/netlify-decap-cms#features-not-to-be-implemented)。',
+      unsupported_backend_suggestion:
+        '[サポートされているバックエンド](https://sveltiacms.app/en/docs/backends#supported-backends) のいずれかを使用してください。',
       missing_repository: 'レポジトリが定義されていません。',
       invalid_repository:
         '設定されているレポジトリが正しくありません。この設定は「owner/repo」形式でなければなりません。',
-      oauth_implicit_flow: '設定されている認証方式 (暗黙的フロー) は非対応です。',
+      oauth_implicit_flow:
+        '設定されている認証方式 (暗黙的フロー) は Sveltia CMS では非対応です。代わりに PKCE 認証を使用してください。',
+      github_pkce_unsupported:
+        'GitHub の制約により、Sveltia CMS ではまだ GitHub での PKCE 認証がサポートされていません。',
       oauth_no_app_id: ' OAuth アプリケーション ID が定義されていません。',
       missing_media_folder: 'メディアフォルダーが定義されていません。',
       invalid_media_folder:
@@ -666,7 +686,8 @@ export const strings = {
         '設定されているパブリックフォルダーが正しくありません。この設定は文字列でなければなりません。',
       public_folder_relative_path:
         '設定されているパブリックフォルダーが正しくありません。この設定は「/」で始まる絶対パスでなければなりません。',
-      public_folder_absolute_url: 'パブリックフォルダーオプションの絶対 URL は非対応です。',
+      public_folder_absolute_url:
+        'パブリックフォルダーオプションの絶対 URL は Sveltia CMS では非対応です。',
       invalid_collection_no_options:
         'コレクションは `folder`、`files`、`divider` オプションのいずれかを定義する必要があります。',
       invalid_collection_multiple_options:
@@ -704,6 +725,8 @@ export const strings = {
         'Sveltia CMS では `allow_multiple` オプションはサポートされていません。代わりにデフォルトで `false` の `multiple` オプションを使用してください。',
       invalid_list_field:
         'List フィールドは `field`、`fields`、`types` オプションを同時に持つことはできません。',
+      invalid_list_variable_type:
+        'List フィールドの変数タイプが無効です。`widget` オプションは `{widget}` に設定されていますが、`object` でなければなりません。',
       invalid_object_field:
         'Object フィールドは `fields` と `types` オプションを同時に持つことはできません。',
       object_field_missing_fields:
@@ -728,6 +751,8 @@ export const strings = {
       unsupported_ignored_option:
         '`{prop}` オプションは Sveltia CMS ではサポートされていません。このオプションは無視されます。',
     },
+    compatibility_link:
+      '詳しくは互換性情報をご覧ください: https://sveltiacms.app/en/docs/migration/netlify-decap-cms#features-not-to-be-implemented',
   },
 
   // Backends
@@ -799,11 +824,15 @@ export const strings = {
     },
     i18n: {
       title: '国際化',
-      default_translator: {
-        title: 'デフォルト翻訳サービス',
-        select_service: 'サービスを選択',
-      },
-      translator: {
+      translators: {
+        default: {
+          title: 'デフォルト翻訳サービス',
+          select_service: 'サービスを選択',
+        },
+        api_keys: {
+          title: '翻訳サービス API キー',
+          description: '<a>翻訳サービス</a> の API キーを管理します。',
+        },
         field_label: '{service} キー',
         description:
           '<a {homeHref}>{service}</a> にユーザー登録して、<a {apiKeyHref}>発行されたキー</a> をここに入力すると、テキストエントリー項目の素早い翻訳が可能となります。',
@@ -812,16 +841,21 @@ export const strings = {
     media: {
       title: 'メディア',
       stock_photos: {
-        title: '{service} 無料画像素材',
+        api_keys: {
+          title: '無料画像素材サービス API キー',
+          description: '<a>無料画像素材サービス</a> の API キーを管理します。',
+        },
         field_label: '{service} API キー',
         description:
           '<a {homeHref}>{service} API</a> にユーザー登録して、<a {apiKeyHref}>発行された API キー</a> をここに入力すると、画像エントリー項目に無料のストックフォトを挿入できます。',
         credit: '写真提供: {service}',
       },
       cloud_storage: {
+        api_keys: {
+          title: 'クラウドストレージサービス API キー',
+          description: '<a>クラウドストレージサービス</a> の API キーを管理します。',
+        },
         field_label: '{service} API キー',
-        description:
-          'アセットを {service} にアップロードできるようにするには、{service} の API キーを入力してください。',
       },
       libraries_disabled: '外部メディアライブラリは管理者によって無効化されています。',
     },

@@ -18,7 +18,7 @@
 </script>
 
 <section>
-  <h4>{$_('prefs.appearance.theme')}</h4>
+  <h3>{$_('prefs.appearance.theme')}</h3>
   <div role="none">
     <SelectButtonGroup
       aria-label={$_('prefs.appearance.select_theme')}
@@ -26,7 +26,7 @@
         $prefs = { ...$prefs, theme: event.detail.value };
       }}
     >
-      {#each ['auto', 'dark', 'light'] as value}
+      {#each ['auto', 'dark', 'light'] as value (value)}
         <SelectButton
           variant="tertiary"
           label={$_(`prefs.theme.${value}`)}

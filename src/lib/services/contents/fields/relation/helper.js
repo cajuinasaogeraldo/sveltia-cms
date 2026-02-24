@@ -78,29 +78,21 @@ export const normalizeFieldName = (fieldName) => {
 };
 
 /**
- * Determine the type of list field based on the field configuration.
+ * Check if the given field configuration is a complex list field with subfields (e.g.
+ * `cities.*.name`) and not just a simple list field (e.g. `skills.*`).
  * @internal
  * @param {Field | undefined} fieldConfig Field configuration object.
- * @returns {{ isSimpleListField: boolean, isSingleSubfieldListField: boolean }} Object with boolean
- * flags for different list field types.
+ * @returns {boolean} Whether the field is a complex list field.
  */
-export const getListFieldTypes = (fieldConfig) => {
-  if (!fieldConfig) {
-    return {
-      isSimpleListField: false,
-      isSingleSubfieldListField: false,
-    };
+export const isComplexListField = (fieldConfig) => {
+  if (!fieldConfig || fieldConfig.widget !== 'list') {
+    return false;
   }
 
-  const isListField = fieldConfig.widget === 'list';
-  const hasField = isListField ? 'field' in /** @type {ListField} */ (fieldConfig) : false;
-  const hasFields = isListField ? 'fields' in /** @type {ListField} */ (fieldConfig) : false;
-  const hasTypes = isListField ? 'types' in /** @type {ListField} */ (fieldConfig) : false;
+  const hasFields = 'fields' in /** @type {ListField} */ (fieldConfig);
+  const hasTypes = 'types' in /** @type {ListField} */ (fieldConfig);
 
-  return {
-    isSimpleListField: isListField && !hasField && !hasFields && !hasTypes,
-    isSingleSubfieldListField: isListField && hasField && !hasFields && !hasTypes,
-  };
+  return hasFields || hasTypes;
 };
 
 /**
@@ -334,7 +326,7 @@ export const analyzeListFields = (allFieldNames, getFieldArgs) => {
       listFieldConfigs.set(fieldName, {
         baseFieldName,
         fieldConfig: fieldConfigForList,
-        ...getListFieldTypes(fieldConfigForList),
+        isComplexListField: isComplexListField(fieldConfigForList),
       });
     });
 
@@ -363,7 +355,7 @@ export const analyzeListFields = (allFieldNames, getFieldArgs) => {
  * @param {string[]} params.allFieldNames All field names.
  * @param {ReplacementContext} params.context Replacement context.
  * @param {FallbackContext} params.fallbackContext Fallback context.
- * @returns {RelationOption} Single option with joined values.
+ * @returns {RelationOption[]} One option per list item.
  */
 export const processSingleSubfieldList = ({
   baseFieldName,
@@ -377,40 +369,45 @@ export const processSingleSubfieldList = ({
   const { _displayField, _valueField, _searchField } = templates;
   const regex = new RegExp(`^${escapeRegExp(baseFieldName)}\\.\\d+$`);
 
-  const values = Object.entries(content)
+  const items = Object.entries(content)
     .filter(([k]) => regex.test(k))
-    .map(([, v]) => v);
+    .map(([k, v]) => {
+      const indexMatch = k.match(/\.(\d+)$/);
 
-  const joinedValue = values.join(' ');
+      return { index: parseInt(indexMatch?.[1] || '0', 10), value: v };
+    })
+    .sort((a, b) => a.index - b.index);
 
-  // Replace all wildcards for this base field
-  const processedTemplates = {
-    label: _displayField,
-    value: _valueField,
-    searchValue: _searchField,
-  };
+  return items.map(({ value: itemValue }) => {
+    // Replace all wildcards for this base field with the current item value
+    const processedTemplates = {
+      label: _displayField,
+      value: _valueField,
+      searchValue: _searchField,
+    };
 
-  groupEntries.forEach(([fieldName]) => {
-    processedTemplates.label = processedTemplates.label.replaceAll(`{{${fieldName}}}`, joinedValue);
-    processedTemplates.value = processedTemplates.value.replaceAll(`{{${fieldName}}}`, joinedValue);
-    processedTemplates.searchValue = processedTemplates.searchValue.replaceAll(
-      `{{${fieldName}}}`,
-      joinedValue,
+    groupEntries.forEach(([fieldName]) => {
+      processedTemplates.label = processedTemplates.label.replaceAll(`{{${fieldName}}}`, itemValue);
+      processedTemplates.value = processedTemplates.value.replaceAll(`{{${fieldName}}}`, itemValue);
+      processedTemplates.searchValue = processedTemplates.searchValue.replaceAll(
+        `{{${fieldName}}}`,
+        itemValue,
+      );
+    });
+
+    const { label, value, searchValue } = replaceTemplateFields(
+      processedTemplates,
+      allFieldNames.filter((name) => !name.includes('*')),
+      context,
+      fallbackContext,
     );
+
+    return {
+      label: label || '',
+      value: value || context.slug,
+      searchValue: searchValue || label || '',
+    };
   });
-
-  const { label, value, searchValue } = replaceTemplateFields(
-    processedTemplates,
-    allFieldNames.filter((name) => !name.includes('*')),
-    context,
-    fallbackContext,
-  );
-
-  return {
-    label: label || '',
-    value: value || context.slug,
-    searchValue: searchValue || label || '',
-  };
 };
 
 /**
@@ -560,32 +557,21 @@ export const processListFields = ({
 
     const [, firstConfig] = groupEntries[0];
 
-    if (firstConfig.isSingleSubfieldListField) {
-      const option = processSingleSubfieldList({
-        baseFieldName,
-        groupEntries,
-        content,
-        templates,
-        allFieldNames,
-        context,
-        fallbackContext,
-      });
+    const args = {
+      groupEntries,
+      content,
+      templates,
+      allFieldNames,
+      context,
+      fallbackContext,
+    };
 
-      results.push(option);
-      hasProcessedListFields = true;
-    } else {
-      const options = processComplexListField({
-        groupEntries,
-        content,
-        templates,
-        allFieldNames,
-        context,
-        fallbackContext,
-      });
+    const options = firstConfig.isComplexListField
+      ? processComplexListField({ ...args })
+      : processSingleSubfieldList({ ...args, baseFieldName });
 
-      results.push(...options);
-      hasProcessedListFields = true;
-    }
+    results.push(...options);
+    hasProcessedListFields = true;
   });
 
   return { results, hasProcessedListFields };

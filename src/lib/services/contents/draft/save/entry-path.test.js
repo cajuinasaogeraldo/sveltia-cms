@@ -34,6 +34,158 @@ describe('contents/draft/save/entry-path', () => {
     mockGetLocalePath.mockImplementation(({ path }) => path);
   });
 
+  describe('buildPathByStructure', () => {
+    it('should handle multiple_folders structure with omitLocale=false', async () => {
+      const { buildPathByStructure } = await import('./entry-path.js');
+
+      const result = buildPathByStructure({
+        basePath: 'content',
+        path: 'products',
+        extension: 'md',
+        locale: 'fr',
+        omitLocale: false,
+        structure: 'multiple_folders',
+      });
+
+      expect(result).toBe('content/fr/products.md');
+    });
+
+    it('should handle multiple_folders structure with omitLocale=true', async () => {
+      const { buildPathByStructure } = await import('./entry-path.js');
+
+      const result = buildPathByStructure({
+        basePath: 'content',
+        path: 'products',
+        extension: 'md',
+        locale: 'en',
+        omitLocale: true,
+        structure: 'multiple_folders',
+      });
+
+      expect(result).toBe('content/products.md');
+    });
+
+    it('should handle multiple_folders_i18n_root structure (deprecated) with omitLocale=false', async () => {
+      const { buildPathByStructure } = await import('./entry-path.js');
+
+      const result = buildPathByStructure({
+        basePath: 'content',
+        path: 'settings',
+        extension: 'yaml',
+        locale: 'fr',
+        omitLocale: false,
+        structure: 'multiple_folders_i18n_root',
+      });
+
+      expect(result).toBe('fr/content/settings.yaml');
+    });
+
+    it('should handle multiple_folders_i18n_root structure (deprecated) with omitLocale=true', async () => {
+      const { buildPathByStructure } = await import('./entry-path.js');
+
+      const result = buildPathByStructure({
+        basePath: 'content',
+        path: 'settings',
+        extension: 'yaml',
+        locale: 'en',
+        omitLocale: true,
+        structure: 'multiple_folders_i18n_root',
+      });
+
+      expect(result).toBe('content/settings.yaml');
+    });
+
+    it('should handle multiple_root_folders structure with omitLocale=false', async () => {
+      const { buildPathByStructure } = await import('./entry-path.js');
+
+      const result = buildPathByStructure({
+        basePath: 'content',
+        path: 'settings',
+        extension: 'yaml',
+        locale: 'fr',
+        omitLocale: false,
+        structure: 'multiple_root_folders',
+      });
+
+      expect(result).toBe('fr/content/settings.yaml');
+    });
+
+    it('should handle multiple_root_folders structure with omitLocale=true', async () => {
+      const { buildPathByStructure } = await import('./entry-path.js');
+
+      const result = buildPathByStructure({
+        basePath: 'content',
+        path: 'settings',
+        extension: 'yaml',
+        locale: 'en',
+        omitLocale: true,
+        structure: 'multiple_root_folders',
+      });
+
+      expect(result).toBe('content/settings.yaml');
+    });
+
+    it('should handle multiple_files structure with omitLocale=false', async () => {
+      const { buildPathByStructure } = await import('./entry-path.js');
+
+      const result = buildPathByStructure({
+        basePath: 'posts',
+        path: 'hello',
+        extension: 'md',
+        locale: 'fr',
+        omitLocale: false,
+        structure: 'multiple_files',
+      });
+
+      expect(result).toBe('posts/hello.fr.md');
+    });
+
+    it('should handle multiple_files structure with omitLocale=true', async () => {
+      const { buildPathByStructure } = await import('./entry-path.js');
+
+      const result = buildPathByStructure({
+        basePath: 'posts',
+        path: 'hello',
+        extension: 'md',
+        locale: 'en',
+        omitLocale: true,
+        structure: 'multiple_files',
+      });
+
+      expect(result).toBe('posts/hello.md');
+    });
+
+    it('should handle default structure (single_file)', async () => {
+      const { buildPathByStructure } = await import('./entry-path.js');
+
+      const result = buildPathByStructure({
+        basePath: 'content',
+        path: 'about',
+        extension: 'md',
+        locale: 'en',
+        omitLocale: false,
+        structure: 'single_file',
+      });
+
+      expect(result).toBe('content/about.md');
+    });
+
+    it('should handle empty basePath', async () => {
+      const { buildPathByStructure } = await import('./entry-path.js');
+
+      const result = buildPathByStructure({
+        basePath: '',
+        path: 'settings',
+        extension: 'yaml',
+        locale: 'en',
+        omitLocale: true,
+        structure: 'multiple_folders',
+      });
+
+      expect(result).toBe('/settings.yaml');
+    });
+  });
+
   describe('createEntryPath', () => {
     it('should create path for file collection', async () => {
       const { createEntryPath } = await import('./entry-path.js');
@@ -43,7 +195,8 @@ describe('contents/draft/save/entry-path', () => {
           _i18n: {
             defaultLocale: 'en',
             structure: 'single_file',
-            omitDefaultLocaleFromFileName: false,
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
           },
         },
         collectionFile: {
@@ -51,7 +204,8 @@ describe('contents/draft/save/entry-path', () => {
           _i18n: {
             defaultLocale: 'en',
             structure: 'single_file',
-            omitDefaultLocaleFromFileName: false,
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
           },
         },
         originalEntry: undefined,
@@ -77,7 +231,8 @@ describe('contents/draft/save/entry-path', () => {
           _i18n: {
             defaultLocale: 'en',
             structure: 'single_file',
-            omitDefaultLocaleFromFileName: false,
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
           },
         },
         collectionFile: undefined,
@@ -104,7 +259,8 @@ describe('contents/draft/save/entry-path', () => {
           _i18n: {
             defaultLocale: 'en',
             structure: 'single_file',
-            omitDefaultLocaleFromFileName: false,
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
           },
           _file: {
             basePath: 'posts',
@@ -132,7 +288,8 @@ describe('contents/draft/save/entry-path', () => {
           _i18n: {
             defaultLocale: 'en',
             structure: 'multiple_folders',
-            omitDefaultLocaleFromFileName: false,
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
           },
           _file: {
             basePath: 'posts',
@@ -160,7 +317,37 @@ describe('contents/draft/save/entry-path', () => {
           _i18n: {
             defaultLocale: 'en',
             structure: 'multiple_folders_i18n_root',
-            omitDefaultLocaleFromFileName: false,
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
+          },
+          _file: {
+            basePath: 'posts',
+            subPath: undefined,
+            extension: 'md',
+          },
+        },
+        collectionFile: undefined,
+        originalEntry: undefined,
+        currentValues: { en: {} },
+        isIndexFile: false,
+      };
+
+      const result = createEntryPath({ draft, locale: 'en', slug: 'my-post' });
+
+      expect(result).toBe('en/posts/my-post.md');
+    });
+
+    it('should create path for multiple_root_folders structure', async () => {
+      const { createEntryPath } = await import('./entry-path.js');
+
+      const draft = {
+        collection: {
+          _type: 'entry',
+          _i18n: {
+            defaultLocale: 'en',
+            structure: 'multiple_root_folders',
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
           },
           _file: {
             basePath: 'posts',
@@ -188,7 +375,8 @@ describe('contents/draft/save/entry-path', () => {
           _i18n: {
             defaultLocale: 'en',
             structure: 'multiple_files',
-            omitDefaultLocaleFromFileName: false,
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
           },
           _file: {
             basePath: 'posts',
@@ -216,7 +404,8 @@ describe('contents/draft/save/entry-path', () => {
           _i18n: {
             defaultLocale: 'en',
             structure: 'multiple_files',
-            omitDefaultLocaleFromFileName: true,
+            omitDefaultLocaleFromFilePath: true,
+            omitDefaultLocaleFromPreviewPath: false,
           },
           _file: {
             basePath: 'posts',
@@ -239,7 +428,7 @@ describe('contents/draft/save/entry-path', () => {
       expect(resultJa).toBe('posts/my-post.ja.md');
     });
 
-    it('should handle folder collections path with subPath', async () => {
+    it('should handle entry collections path with subPath', async () => {
       const { createEntryPath } = await import('./entry-path.js');
 
       mockFillTemplate.mockImplementation((template) => {
@@ -256,7 +445,8 @@ describe('contents/draft/save/entry-path', () => {
           _i18n: {
             defaultLocale: 'en',
             structure: 'single_file',
-            omitDefaultLocaleFromFileName: false,
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
           },
           _file: {
             basePath: 'posts',
@@ -294,7 +484,8 @@ describe('contents/draft/save/entry-path', () => {
           _i18n: {
             defaultLocale: 'en',
             structure: 'single_file',
-            omitDefaultLocaleFromFileName: false,
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
           },
           _file: {
             basePath: 'posts',
@@ -323,7 +514,8 @@ describe('contents/draft/save/entry-path', () => {
           _i18n: {
             defaultLocale: 'en',
             structure: 'unknown_structure',
-            omitDefaultLocaleFromFileName: false,
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
           },
           _file: {
             basePath: 'posts',
@@ -340,6 +532,151 @@ describe('contents/draft/save/entry-path', () => {
       const result = createEntryPath({ draft, locale: 'en', slug: 'my-post' });
 
       expect(result).toBe('posts/my-post.md');
+    });
+
+    it('should strip leading slash when basePath is empty for single_file structure', async () => {
+      const { createEntryPath } = await import('./entry-path.js');
+
+      const draft = {
+        collection: {
+          _type: 'entry',
+          _i18n: {
+            defaultLocale: 'en',
+            structure: 'single_file',
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
+          },
+          _file: {
+            basePath: '',
+            subPath: undefined,
+            extension: 'md',
+          },
+        },
+        collectionFile: undefined,
+        originalEntry: undefined,
+        currentValues: { en: {} },
+        isIndexFile: false,
+      };
+
+      const result = createEntryPath({ draft, locale: 'en', slug: 'my-post' });
+
+      expect(result).toBe('my-post.md');
+    });
+
+    it('should strip leading slash when basePath is empty for multiple_folders structure', async () => {
+      const { createEntryPath } = await import('./entry-path.js');
+
+      const draft = {
+        collection: {
+          _type: 'entry',
+          _i18n: {
+            defaultLocale: 'en',
+            structure: 'multiple_folders',
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
+          },
+          _file: {
+            basePath: '',
+            subPath: undefined,
+            extension: 'md',
+          },
+        },
+        collectionFile: undefined,
+        originalEntry: undefined,
+        currentValues: { en: {} },
+        isIndexFile: false,
+      };
+
+      const result = createEntryPath({ draft, locale: 'en', slug: 'my-post' });
+
+      expect(result).toBe('en/my-post.md');
+    });
+
+    it('should strip leading slash when basePath is empty for multiple_files structure', async () => {
+      const { createEntryPath } = await import('./entry-path.js');
+
+      const draft = {
+        collection: {
+          _type: 'entry',
+          _i18n: {
+            defaultLocale: 'en',
+            structure: 'multiple_files',
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
+          },
+          _file: {
+            basePath: '',
+            subPath: undefined,
+            extension: 'md',
+          },
+        },
+        collectionFile: undefined,
+        originalEntry: undefined,
+        currentValues: { en: {} },
+        isIndexFile: false,
+      };
+
+      const result = createEntryPath({ draft, locale: 'en', slug: 'my-post' });
+
+      expect(result).toBe('my-post.en.md');
+    });
+
+    it('should strip leading slash when basePath is empty for multiple_folders_i18n_root structure', async () => {
+      const { createEntryPath } = await import('./entry-path.js');
+
+      const draft = {
+        collection: {
+          _type: 'entry',
+          _i18n: {
+            defaultLocale: 'en',
+            structure: 'multiple_folders_i18n_root',
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
+          },
+          _file: {
+            basePath: '',
+            subPath: undefined,
+            extension: 'md',
+          },
+        },
+        collectionFile: undefined,
+        originalEntry: undefined,
+        currentValues: { en: {} },
+        isIndexFile: false,
+      };
+
+      const result = createEntryPath({ draft, locale: 'en', slug: 'my-post' });
+
+      expect(result).toBe('en/my-post.md');
+    });
+
+    it('should strip leading slash when basePath is empty for multiple_root_folders structure', async () => {
+      const { createEntryPath } = await import('./entry-path.js');
+
+      const draft = {
+        collection: {
+          _type: 'entry',
+          _i18n: {
+            defaultLocale: 'en',
+            structure: 'multiple_root_folders',
+            omitDefaultLocaleFromFilePath: false,
+            omitDefaultLocaleFromPreviewPath: false,
+          },
+          _file: {
+            basePath: '',
+            subPath: undefined,
+            extension: 'md',
+          },
+        },
+        collectionFile: undefined,
+        originalEntry: undefined,
+        currentValues: { en: {} },
+        isIndexFile: false,
+      };
+
+      const result = createEntryPath({ draft, locale: 'en', slug: 'my-post' });
+
+      expect(result).toBe('en/my-post.md');
     });
   });
 });

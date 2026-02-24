@@ -2,6 +2,7 @@
   @component
   Implement the editor for a KeyValue field compatible with Static CMS.
   @see https://staticjscms.netlify.app/docs/widget-keyvalue
+  @see https://sveltiacms.app/en/docs/fields/keyvalue
 -->
 <script>
   import { Button, Icon, TextInput } from '@sveltia/ui';
@@ -162,7 +163,7 @@
       </tr>
     </thead>
     <tbody>
-      {#each pairs as pair, index}
+      {#each pairs as pair, index (`${pair[0]}-${index}`)}
         <tr bind:this={rowElements[index]}>
           <td class="key">
             <TextInput

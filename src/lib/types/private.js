@@ -99,8 +99,8 @@
  * @property {string} [branch] Branch name, e.g. `master` or `main`.
  * @property {string} [repoURL] The repository’s web-accessible URL that can be linked from the CMS
  * UI to the backend service. Git backends only.
- * @property {string} [newPatURL] URL of the page where the user can create a personal access token
- * (PAT). Git backends only.
+ * @property {string} [tokenPageURL] URL of the page where the user can create a personal access
+ * token (PAT). Git backends only.
  * @property {string} [treeBaseURL] Repository’s tree base URL with a branch name. It’s the same as
  * `baseURL` when the default branch is used. Git backends only.
  * @property {string} [blobBaseURL] Repository’s blob base URL with a branch name. Git backends
@@ -204,9 +204,9 @@
  * @property {() => Promise<void>} fetchFiles Function to fetch files.
  * @property {(asset: Asset) => Promise<Blob>} [fetchBlob] Function to fetch an asset as a Blob. Git
  * backends only.
- * @property {(changes: FileChange[], options: CommitOptions) => Promise<CommitResults>
- * } commitChanges Function to save file changes, including additions and deletions, and return the
- * commit hash and a map of committed files.
+ * @property {(changes: FileChange[], options: CommitOptions) =>
+ * Promise<CommitResults>} commitChanges Function to save file changes, including additions and
+ * deletions, and return the commit hash and a map of committed files.
  * @property {() => Promise<Response>} [triggerDeployment] Function to manually trigger a new
  * deployment on any connected CI/CD provider. GitHub only.
  */
@@ -249,12 +249,12 @@
  * @property {() => Promise<boolean>} [init] Function to initialize the service.
  * @property {(userName: string, password: string) => Promise<boolean>} [signIn] Function to sign in
  * to the service.
- * @property {(query: string, options: MediaLibraryFetchOptions) => Promise<ExternalAsset[]>
- * } [search] Function to search files.
+ * @property {(query: string, options: MediaLibraryFetchOptions) =>
+ * Promise<ExternalAsset[]>} [search] Function to search files.
  * @property {(options: MediaLibraryFetchOptions) => Promise<ExternalAsset[]>} [list] Function to
  * list files. For stock asset services, it should return popular or curated images.
- * @property {(files: File[], options: MediaLibraryFetchOptions) => Promise<ExternalAsset[]>
- * } [upload] Function to upload files to the cloud storage service.
+ * @property {(files: File[], options: MediaLibraryFetchOptions) =>
+ * Promise<ExternalAsset[]>} [upload] Function to upload files to the cloud storage service.
  */
 
 /**
@@ -299,8 +299,8 @@
 
 /**
  * Git commit type.
- * @typedef {'create' | 'update' | 'delete' | 'uploadMedia' | 'deleteMedia' | 'openAuthoring'
- * } CommitType
+ * @typedef {'create' | 'update' | 'delete' | 'uploadMedia' | 'deleteMedia' |
+ * 'openAuthoring'} CommitType
  */
 
 /**
@@ -368,8 +368,8 @@
  * and the value is the corresponding file path. File/singleton collection only.
  * @property {string} [folderPath] Folder path. Entry collection only.
  * @property {Record<InternalLocaleCode, string>} [folderPathMap] Folder path map. Entry collection
- * only. Paths in `folderPathMap` are prefixed with a locale if the `multiple_folders_i18n_root`
- * i18n structure is used, while `folderPath` is a bare collection `folder` path.
+ * only. Paths in `folderPathMap` are prefixed with a locale if the `multiple_root_folders` i18n
+ * structure is used, while `folderPath` is a bare collection `folder` path.
  */
 
 /**
@@ -396,6 +396,7 @@
  * @property {boolean} hasTemplateTags Whether the `internalPath` contains template tags like
  * `/assets/images/{{slug}}`, which require special handling like `entryRelative`.
  * @see https://decapcms.org/docs/collection-folder/#media-and-public-folder
+ * @see https://sveltiacms.app/en/docs/media/internal#configuring-folder-paths
  */
 
 /**
@@ -432,8 +433,8 @@
  * @property {boolean} i18nSingleFile Whether the i18n structure is a single file.
  * @property {boolean} i18nMultiFile Whether the i18n structure is multiple files.
  * @property {boolean} i18nMultiFolder Whether the i18n structure is multiple folders.
- * @property {boolean} i18nRootMultiFolder Whether the i18n structure is multiple folders with the
- * locale in the root.
+ * @property {boolean} i18nMultiRootFolder Whether the i18n structure is multiple folders with the
+ * locale under the repository root.
  */
 
 /**
@@ -451,8 +452,10 @@
  * @property {I18nFileStructure} structure File structure.
  * @property {I18nFileStructureMap} structureMap I18n structure map.
  * @property {{ key: string, value: string }} canonicalSlug See `canonical_slug` above.
- * @property {boolean} omitDefaultLocaleFromFileName Whether to exclude the default locale from
- * entry filenames.
+ * @property {boolean} omitDefaultLocaleFromFilePath Whether to exclude the default locale from
+ * entry file paths.
+ * @property {boolean} omitDefaultLocaleFromPreviewPath Whether to exclude the default locale from
+ * preview URL paths.
  */
 
 /**
@@ -480,8 +483,8 @@
 
 /**
  * An entry collection definition.
- * @typedef {EntryCollection & EntryCollectionExtraProps & CollectionExtraProps
- * } InternalEntryCollection
+ * @typedef {EntryCollection & EntryCollectionExtraProps &
+ * CollectionExtraProps} InternalEntryCollection
  */
 
 /**
@@ -494,8 +497,8 @@
 
 /**
  * A file/singleton collection definition.
- * @typedef {FileCollection & FileCollectionExtraProps & CollectionExtraProps
- * } InternalFileCollection
+ * @typedef {FileCollection & FileCollectionExtraProps &
+ * CollectionExtraProps} InternalFileCollection
  */
 
 /**
@@ -833,6 +836,7 @@
  * @property {string} [key] Target field name.
  * @property {SortOrder} [order] Sort order.
  * @see https://decapcms.org/docs/configuration-options/#sortable_fields
+ * @see https://sveltiacms.app/en/docs/collections/entries#sorting
  */
 
 /**
@@ -841,6 +845,7 @@
  * @property {FieldKeyPath} field Target field name.
  * @property {string | RegExp | boolean} pattern Regular expression matching pattern or exact value.
  * @see https://decapcms.org/docs/configuration-options/#view_filters
+ * @see https://sveltiacms.app/en/docs/collections/entries#filtering
  */
 
 /**
@@ -850,6 +855,7 @@
  * @property {string | RegExp | boolean} [pattern] Regular expression matching pattern or exact
  * value.
  * @see https://decapcms.org/docs/configuration-options/#view_groups
+ * @see https://sveltiacms.app/en/docs/collections/entries#grouping
  */
 
 /**
@@ -993,6 +999,7 @@
  * @property {InternalLocaleCode} defaultLocale Default locale of the entry draft.
  * @property {string} [dynamicValue] Dynamic default value parsed from the URL query string.
  * @see https://decapcms.org/docs/dynamic-default-values/
+ * @see https://sveltiacms.app/en/docs/ui/content-editor#dynamic-default-values
  */
 
 /**

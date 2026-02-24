@@ -7,10 +7,10 @@ import {
   extractFieldNames,
   filterAndPrepareEntries,
   getFieldReplacement,
-  getListFieldTypes,
   getOptions,
   getReferencedOptionLabel,
   getSubFieldMatch,
+  isComplexListField,
   normalizeFieldName,
   optionCacheMap,
   prepareFieldTemplates,
@@ -242,10 +242,11 @@ describe('Test getOptions()', async () => {
         i18nSingleFile: true,
         i18nMultiFile: false,
         i18nMultiFolder: false,
-        i18nRootMultiFolder: false,
+        i18nMultiRootFolder: false,
       },
       canonicalSlug: { key: 'translationKey', value: '{{slug}}' },
-      omitDefaultLocaleFromFileName: false,
+      omitDefaultLocaleFromFilePath: false,
+      omitDefaultLocaleFromPreviewPath: false,
     },
     _file: {
       format: 'yaml-frontmatter',
@@ -463,6 +464,27 @@ describe('Test getOptions()', async () => {
         expect(result[1].label).toBe('New York');
       });
 
+      test('should handle simple list fields (no field/fields/types)', () => {
+        vi.mocked(getField).mockReturnValue({
+          name: 'skills',
+          widget: 'list',
+          // No `field`, `fields`, or `types` — this is a plain string-list field
+        });
+
+        /** @type {RelationField} */
+        const fieldConfig = {
+          ...baseFieldConfig,
+          collection: 'members',
+          display_fields: ['skills.*'],
+        };
+
+        const result = getOptions(locale, fieldConfig, singleEntry);
+
+        // Each list item becomes a separate option
+        expect(result).toHaveLength(3);
+        expect(result.map((o) => o.label).sort()).toEqual(['JavaScript', 'Node.js', 'React']);
+      });
+
       test('should handle single subfield list fields', () => {
         vi.mocked(getField).mockReturnValue({
           name: 'skills',
@@ -479,13 +501,9 @@ describe('Test getOptions()', async () => {
 
         const result = getOptions(locale, fieldConfig, singleEntry);
 
-        expect(result).toHaveLength(1);
-        // Check that the label contains the expected content without strict string comparison
-        expect(result[0].label).toBeDefined();
-        expect(result[0].label.length).toBeGreaterThan(0);
-        expect(result[0].label.includes('JavaScript')).toBe(true);
-        expect(result[0].label.includes('React')).toBe(true);
-        expect(result[0].label.includes('Node.js')).toBe(true);
+        // Each list item becomes a separate option
+        expect(result).toHaveLength(3);
+        expect(result.map((o) => o.label).sort()).toEqual(['JavaScript', 'Node.js', 'React']);
       });
 
       test('should handle complex list fields with multiple subfields', () => {
@@ -835,10 +853,11 @@ describe('Test getOptions()', async () => {
             i18nSingleFile: true,
             i18nMultiFile: false,
             i18nMultiFolder: false,
-            i18nRootMultiFolder: false,
+            i18nMultiRootFolder: false,
           },
           canonicalSlug: { key: 'translationKey', value: '{{slug}}' },
-          omitDefaultLocaleFromFileName: false,
+          omitDefaultLocaleFromFilePath: false,
+          omitDefaultLocaleFromPreviewPath: false,
         },
       };
 
@@ -1067,10 +1086,11 @@ describe('Test getOptions()', async () => {
             i18nSingleFile: true,
             i18nMultiFile: false,
             i18nMultiFolder: false,
-            i18nRootMultiFolder: false,
+            i18nMultiRootFolder: false,
           },
           canonicalSlug: { key: 'translationKey', value: '{{slug}}' },
-          omitDefaultLocaleFromFileName: false,
+          omitDefaultLocaleFromFilePath: false,
+          omitDefaultLocaleFromPreviewPath: false,
         },
       };
 
@@ -1866,8 +1886,7 @@ describe('Test getOptions()', async () => {
             [
               'items.*',
               {
-                isSingleSubfieldListField: true,
-                isSimpleListField: false,
+                isComplexListField: false,
               },
             ],
           ],
@@ -1924,8 +1943,7 @@ describe('Test getOptions()', async () => {
             [
               'authors.*.name',
               {
-                isSingleSubfieldListField: false,
-                isSimpleListField: false,
+                isComplexListField: true,
               },
             ],
           ],
@@ -2004,62 +2022,50 @@ describe('Test normalizeFieldName()', () => {
   });
 });
 
-describe('Test getListFieldTypes()', () => {
-  test('should return false flags for undefined field config', () => {
-    const result = getListFieldTypes(undefined);
-
-    expect(result.isSimpleListField).toBe(false);
-    expect(result.isSingleSubfieldListField).toBe(false);
+describe('Test isComplexListField()', () => {
+  test('should return false for undefined field config', () => {
+    expect(isComplexListField(undefined)).toBe(false);
   });
 
-  test('should return false flags for non-list field', () => {
-    const result = getListFieldTypes({ widget: 'string', name: 'title' });
-
-    expect(result.isSimpleListField).toBe(false);
-    expect(result.isSingleSubfieldListField).toBe(false);
+  test('should return false for non-list field', () => {
+    expect(isComplexListField({ widget: 'string', name: 'title' })).toBe(false);
   });
 
-  test('should identify simple list field', () => {
-    const result = getListFieldTypes({ widget: 'list', name: 'tags' });
-
-    expect(result.isSimpleListField).toBe(true);
-    expect(result.isSingleSubfieldListField).toBe(false);
+  test('should return false for simple list field without subfields', () => {
+    expect(isComplexListField({ widget: 'list', name: 'tags' })).toBe(false);
   });
 
-  test('should identify single subfield list field', () => {
-    const result = getListFieldTypes({
-      widget: 'list',
-      name: 'items',
-      field: { widget: 'string', name: 'item' },
-    });
-
-    expect(result.isSimpleListField).toBe(false);
-    expect(result.isSingleSubfieldListField).toBe(true);
+  test('should return false for single subfield list field (field property only)', () => {
+    expect(
+      isComplexListField({
+        widget: 'list',
+        name: 'items',
+        field: { widget: 'string', name: 'item' },
+      }),
+    ).toBe(false);
   });
 
-  test('should return false for list with multiple fields', () => {
-    const result = getListFieldTypes({
-      widget: 'list',
-      name: 'items',
-      fields: [
-        { widget: 'string', name: 'title' },
-        { widget: 'string', name: 'description' },
-      ],
-    });
-
-    expect(result.isSimpleListField).toBe(false);
-    expect(result.isSingleSubfieldListField).toBe(false);
+  test('should return true for list field with multiple fields (fields property)', () => {
+    expect(
+      isComplexListField({
+        widget: 'list',
+        name: 'items',
+        fields: [
+          { widget: 'string', name: 'title' },
+          { widget: 'string', name: 'description' },
+        ],
+      }),
+    ).toBe(true);
   });
 
-  test('should return false for list with types', () => {
-    const result = getListFieldTypes({
-      widget: 'list',
-      name: 'items',
-      types: [{ label: 'Type A', widget: 'object', name: 'typeA', fields: [] }],
-    });
-
-    expect(result.isSimpleListField).toBe(false);
-    expect(result.isSingleSubfieldListField).toBe(false);
+  test('should return true for list field with types', () => {
+    expect(
+      isComplexListField({
+        widget: 'list',
+        name: 'items',
+        types: [{ label: 'Type A', widget: 'object', name: 'typeA', fields: [] }],
+      }),
+    ).toBe(true);
   });
 });
 
@@ -2605,7 +2611,7 @@ describe('Test analyzeListFields()', () => {
 });
 
 describe('Test processSingleSubfieldList()', () => {
-  test('should process single subfield list and join values', () => {
+  test('should produce one option per list item', () => {
     const content = {
       'skills.0': 'JavaScript',
       'skills.1': 'React',
@@ -2651,12 +2657,14 @@ describe('Test processSingleSubfieldList()', () => {
       fallbackContext,
     });
 
-    expect(result.label).toContain('JavaScript');
-    expect(result.label).toContain('React');
-    expect(result.label).toContain('Node.js');
+    expect(result).toHaveLength(3);
+    expect(result[0].label).toBe('JavaScript');
+    expect(result[1].label).toBe('React');
+    expect(result[2].label).toBe('Node.js');
+    result.forEach((option) => expect(option.value).toBe('123'));
   });
 
-  test('should handle single subfield list with missing items', () => {
+  test('should handle list items with empty values', () => {
     const content = {
       'skills.0': '',
       'skills.1': 'React',
@@ -2702,9 +2710,10 @@ describe('Test processSingleSubfieldList()', () => {
       fallbackContext,
     });
 
-    // Should join all values (including empty ones)
-    expect(result.label).toContain('React');
-    expect(result.value).toBe('123');
+    // Each item is still returned as a separate option
+    expect(result).toHaveLength(3);
+    expect(result[1].label).toBe('React');
+    result.forEach((option) => expect(option.value).toBe('123'));
   });
 });
 
@@ -2904,10 +2913,7 @@ describe('Test processListFields()', () => {
     };
 
     /** @type {[string, any][]} */
-    const groupEntries = [
-      ['tags.*', { isSingleSubfieldListField: true, isSimpleListField: false }],
-    ];
-
+    const groupEntries = [['tags.*', { isComplexListField: false }]];
     const baseFieldGroups = new Map();
 
     baseFieldGroups.set('tags', groupEntries);
@@ -2960,8 +2966,8 @@ describe('Test processListFields()', () => {
 
     /** @type {[string, any][]} */
     const groupEntries = [
-      ['cities.*.id', { isSingleSubfieldListField: false, isSimpleListField: false }],
-      ['cities.*.name', { isSingleSubfieldListField: false, isSimpleListField: false }],
+      ['cities.*.id', { isComplexListField: true }],
+      ['cities.*.name', { isComplexListField: true }],
     ];
 
     const baseFieldGroups = new Map();

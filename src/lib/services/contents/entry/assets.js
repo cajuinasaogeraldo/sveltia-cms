@@ -2,7 +2,7 @@ import { getPathInfo } from '@sveltia/utils/file';
 import { escapeRegExp } from '@sveltia/utils/string';
 import { get } from 'svelte/store';
 
-import { allAssets, getAssetByPath } from '$lib/services/assets';
+import { allAssets, getAssetByPath, isRelativePath } from '$lib/services/assets';
 import { getAssetFolder, getAssetFoldersByPath } from '$lib/services/assets/folders';
 import { getMediaFieldURL } from '$lib/services/assets/info';
 import { getCollection } from '$lib/services/contents/collection';
@@ -89,7 +89,7 @@ export const getAssociatedAssets = ({ entry, collectionName, fileName, relative 
         Object.entries(content ?? {}).map(([keyPath, value]) => {
           if (
             typeof value === 'string' &&
-            (relative ? !/^[/@]/.test(value) : true) &&
+            (relative ? isRelativePath(value) : true) &&
             ['image', 'file'].includes(
               getField({ collectionName, keyPath, isIndexFile })?.widget ?? 'string',
             )
@@ -118,11 +118,17 @@ export const getAssociatedAssets = ({ entry, collectionName, fileName, relative 
 
   // Add orphaned/unused entry-relative assets
   if (relative && getAssetFolder({ collectionName, fileName })?.entryRelative) {
-    const entryDirName = getPathInfo(Object.values(entry.locales)[0].path).dirname;
+    const entryFolderPath = getPathInfo(Object.values(entry.locales)[0].path).dirname;
 
     get(allAssets).forEach((asset) => {
+      const assetFolderPath = getPathInfo(asset.path).dirname;
+
       if (
-        getPathInfo(asset.path).dirname === entryDirName &&
+        assetFolderPath !== undefined &&
+        entryFolderPath !== undefined &&
+        // Include assets in the entry folder and its subfolders
+        (assetFolderPath === entryFolderPath ||
+          new RegExp(`^${escapeRegExp(entryFolderPath)}(?:\\/|$)`).test(assetFolderPath)) &&
         !assets.find(({ path }) => path === asset.path)
       ) {
         assets.push(asset);

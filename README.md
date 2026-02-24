@@ -147,7 +147,7 @@ Sveltia CMS is the only project that doesn’t inherit the complexity, technical
 - We closely monitor and analyze the predecessor’s issue tracker
 - We rearchitect the entire user experience (UX) and developer experience (DX)
 
-This "total reboot” has enabled us to implement hundreds of improvements without getting stuck in a legacy system. Furthermore:
+This “total reboot” has enabled us to implement hundreds of improvements without getting stuck in a legacy system. Furthermore:
 
 - We dedicate significant time and effort to modernizing the platform
 - We continue to address [issues](https://github.com/decaporg/decap-cms/issues) reported in the predecessor’s repository
@@ -718,6 +718,7 @@ We are working hard to implement several missing features from Netlify/Decap CMS
 - [Documentation](https://github.com/sveltia/sveltia-cms/issues/485) and config validation are under development.
 - [Localization](https://github.com/sveltia/sveltia-cms/blob/main/src/lib/locales/README.md) and a [demo site](https://github.com/sveltia/sveltia-cms/issues/1) will follow soon.
 - Due to the complexity, we have decided to **defer the following features to the 1.x or 2.0 release** due mid-2026. Netlify/Decap CMS has dozens of open issues with these collaboration and beta features — we want to implement them the right way.
+  - [Editorial workflow](https://decapcms.org/docs/editorial-workflows/)
   - [Open authoring](https://decapcms.org/docs/open-authoring/)
   - [Nested collections](https://decapcms.org/docs/collection-nested/) (beta)
 
@@ -857,7 +858,7 @@ Unfortunately, **we are unable to provide installation and setup support** at th
 > Take a look at the [compatibility info](#compatibility) above first. Some Netlify/Decap CMS features are not yet implemented or will not be added to Sveltia CMS, meaning you may not be able to migrate right away.
 <!-- prettier-ignore-end -->
 
-If you’re already using Netlify/Decap CMS with the GitHub, GitLab or Gitea/Forgejo backend and don’t have any unsupported features like open authoring or nested collections, migrating to Sveltia CMS is super easy — it works as a drop-in replacement.
+If you’re already using Netlify/Decap CMS with the GitHub, GitLab or Gitea/Forgejo backend and don’t have any unsupported features like editorial workflow or nested collections, migrating to Sveltia CMS is super easy — it works as a drop-in replacement.
 
 Open `/admin/index.html` locally with an editor like VS Code and replace the CMS `<script>` tag with the new one:
 
@@ -1010,7 +1011,7 @@ Limitation: YAML anchors, aliases and merge keys only work if they are in the sa
 
 ### Working around an authentication error
 
-If you get an "Authentication Aborted” error when trying to sign in to GitHub, GitLab or Gitea/Forgejo using the authorization code flow, you may need to check your site’s [`Cross-Origin-Opener-Policy`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy). The COOP header is not widely used, but it’s known to break the OAuth flow with a popup window. If that’s your case, changing `same-origin` to `same-origin-allow-popups` solves the problem. ([Discussion](https://github.com/sveltia/sveltia-cms/issues/131))
+If you get an “Authentication Aborted” error when trying to sign in to GitHub, GitLab or Gitea/Forgejo using the authorization code flow, you may need to check your site’s [`Cross-Origin-Opener-Policy`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy). The COOP header is not widely used, but it’s known to break the OAuth flow with a popup window. If that’s your case, changing `same-origin` to `same-origin-allow-popups` solves the problem. ([Discussion](https://github.com/sveltia/sveltia-cms/issues/131))
 
 ### Working with a local Git repository
 
@@ -1026,9 +1027,9 @@ Here are the workflow steps and tips:
    - The `127.0.0.1` addresses can also be used instead of `localhost`.
    - If your CMS instance is not located under `/admin/`, use the appropriate path.
    - Other Chromium-based browsers may also work. Brave user? [See below](#enabling-local-development-in-brave).
-1. Click "Work with Local Repository” and select the project’s root directory once prompted.
-   - If you get an error saying "not a repository root directory”, make sure you’ve turned the folder into a repository with either a CUI ([`git init`](https://github.com/git-guides/git-init)) or GUI, and the hidden `.git` folder exists.
-   - If you’re using Windows Subsystem for Linux (WSL), you may get an error saying "Can’t open this folder because it contains system files.” This is due to a limitation in the browser, and you can try some workarounds mentioned in [this issue](https://github.com/coder/code-server/issues/4646) and [this thread](https://github.com/sveltia/sveltia-cms/discussions/101).
+1. Click “Work with Local Repository” and select the project’s root directory once prompted.
+   - If you get an error saying “not a repository root directory”, make sure you’ve turned the folder into a repository with either a CUI ([`git init`](https://github.com/git-guides/git-init)) or GUI, and the hidden `.git` folder exists.
+   - If you’re using Windows Subsystem for Linux (WSL), you may get an error saying “Can’t open this folder because it contains system files.” This is due to a limitation in the browser, and you can try some workarounds mentioned in [this issue](https://github.com/coder/code-server/issues/4646) and [this thread](https://github.com/sveltia/sveltia-cms/discussions/101).
 1. Edit your content normally using the CMS. All changes are made to local files.
 1. Use `git diff` or a GUI like [GitHub Desktop](https://desktop.github.com/) to see if the produced changes look good.
    - GitHub Desktop can be used for any repository, not just GitHub-hosted ones.
@@ -1243,38 +1244,27 @@ A [folder collection](https://decapcms.org/docs/collection-folder/)’s file pat
 Looking at the above options, the entry file path can be constructed as follows:
 
 - With i18n disabled:
-
   ```yaml
   /<folder>/<path>.<extension>
   ```
-
 - With the `single_file` i18n structure
-
   ```yaml
   /<folder>/<path>.<extension>
   ```
-
 - With the `multiple_files` i18n structure:
-
   ```yaml
   /<folder>/<path>.<locale>.<extension>
   ```
-
   When the `omit_default_locale_from_filename` i18n option is set to `true`, the path depends on the locale:
-
   ```yaml
   /<folder>/<path>.<extension> # default locale
   /<folder>/<path>.<locale>.<extension> # other locales
   ```
-
 - With the `multiple_folders` i18n structure:
-
   ```yaml
   /<folder>/<locale>/<path>.<extension>
   ```
-
 - With the `multiple_folders_i18n_root` i18n structure:
-
   ```yaml
   /<locale>/<folder>/<path>.<extension>
   ```
@@ -1363,14 +1353,11 @@ collections:
 With this configuration, an entry is saved with localized filenames, while the default locale’s slug is stored in each file as an extra `translationKey` property, which is used in [Hugo’s multilingual support](https://gohugo.io/content-management/multilingual/#bypassing-default-linking). Sveltia CMS and Hugo read this property to link localized files.
 
 - `content/posts/en/my-trip-to-new-york.yaml`
-
   ```yaml
   translationKey: my-trip-to-new-york
   title: My trip to New York
   ```
-
 - `content/posts/fr/mon-voyage-a-new-york.yaml`
-
   ```yaml
   translationKey: my-trip-to-new-york
   title: Mon voyage à New York
@@ -1782,23 +1769,18 @@ fr:
 There are two exceptional cases for the List widget:
 
 1. When the `field` (singular) option is used, the `name` property is omitted from the output. It will be saved as a simple list of values:
-
    ```yaml
    images:
      - https://example.com/image1.jpg
      - https://example.com/image2.jpg
    ```
-
    instead of an array of objects:
-
    ```yaml
    images:
      - image: https://example.com/image1.jpg
      - image: https://example.com/image2.jpg
    ```
-
    This is not mentioned in the [Decap CMS document](https://decapcms.org/docs/widgets/#List), but it’s a known behaviour. If you expect the latter, you can use the `fields` (plural) option to define a single field:
-
    ```yaml
    - name: images
      label: Images
@@ -1806,18 +1788,14 @@ There are two exceptional cases for the List widget:
      fields:
        - { name: image, label: Image, widget: image }
    ```
-
 1. When the [`root` option](#editing-data-files-with-a-top-level-list) is set to `true`, the List field is saved as a top-level list without a field name:
-
    ```yaml
    - name: John Doe
      id: 12345
    - name: Jane Smith
      id: 67890
    ```
-
    instead of
-
    ```yaml
    members:
      - name: John Doe
@@ -1826,176 +1804,6 @@ There are two exceptional cases for the List widget:
        id: 67890
    ```
 
-### Using Editorial Workflow
-
-Sveltia CMS now supports the [Editorial Workflow](https://decapcms.org/docs/editorial-workflows/) feature from Decap CMS. This allows content to go through a review process before being published, using GitHub Pull Requests as the underlying mechanism.
-
-#### Enabling Editorial Workflow
-
-Add `publish_mode: editorial_workflow` to your configuration:
-
-```yaml
-backend:
-  name: github
-  repo: owner/repo
-  branch: main
-
-publish_mode: editorial_workflow
-```
-
-#### How it works
-
-When Editorial Workflow is enabled:
-
-1. **Draft**: New entries are saved as draft Pull Requests with a `cms/<collection>/<slug>` branch
-2. **In Review**: Content editors can request review, moving the entry to the review queue
-3. **Ready**: Reviewers can approve entries, marking them ready to publish
-4. **Publish**: Approved entries are merged to the main branch
-
-The workflow uses GitHub labels with the `sveltia-cms/` prefix (e.g., `sveltia-cms/draft`, `sveltia-cms/pending_review`, `sveltia-cms/pending_publish`) to track entry status.
-
-#### Customizing Workflow Commit Messages
-
-You can customize commit messages for Editorial Workflow operations using the `commit_messages` option:
-
-```yaml
-backend:
-  name: github
-  repo: owner/repo
-  commit_messages:
-    workflowPublish: 'Merge: {{title}} [{{author-login}}]'
-    workflowPrTitle: '📝 Draft: {{title}}'
-    workflowPrBody: |
-      New entry in {{collection}}
-      Author: {{author-name}} ({{author-email}})
-```
-
-**Available placeholders:**
-
-- `{{title}}` - Entry title
-- `{{slug}}` - Entry slug/filename
-- `{{collection}}` - Collection name
-- `{{author-name}}` - Git author name
-- `{{author-login}}` - GitHub username
-- `{{author-email}}` - Git author email
-
-**Default messages:**
-
-- `workflowPublish`: `Publish {{collection}} "{{slug}}"`
-- `workflowPrTitle`: `Editorial Workflow: {{title}}`
-- `workflowPrBody`: `Creating entry: {{collection}}/{{slug}}`
-
-#### Backend options for Editorial Workflow
-
-```yaml
-backend:
-  name: github
-  repo: owner/repo
-  branch: main
-  cms_label_prefix: sveltia-cms/ # Label prefix for workflow status (default)
-  squash_merges: true # Use squash merge when publishing (default: false)
-  preview_url: https://preview-{{branch}}.example.com # Custom preview URL pattern
-```
-
-##### Squash merge for cleaner history
-
-When using the Editorial Workflow, every time an unpublished entry is saved, a new commit is added to the Pull Request. By default, when the entry is published, all commits are preserved in the merge.
-
-Setting `squash_merges: true` causes all commits to be "squashed" into a single commit when the Pull Request is merged, resulting in a cleaner Git history. This is particularly useful for entries that go through many revisions before publishing.
-
-#### Entry Preview with GitHub Actions
-
-When an entry is "In Review", you can build a preview to see how it will look before publishing. To enable preview functionality, configure `preview_url` in your backend settings. When clicking "Build Preview", Sveltia CMS triggers a `sveltia-cms-preview` repository dispatch event that can be handled by your GitHub Actions workflow.
-
-Sveltia CMS automatically tracks the workflow run status by polling the GitHub Actions API. The UI will show:
-
-- **Building** - When the workflow is queued or in progress
-- **Ready** - When the workflow completes successfully
-- **Error** - When the workflow fails or times out (10 minute max)
-
-##### Supported placeholders for preview_url
-
-- `{{branch}}` - The entry's branch name (e.g., `cms/posts/my-article`)
-- `{{branch_safe}}` - URL-safe branch name with special characters replaced by hyphens (e.g., `cms-posts-my-article`)
-- `{{collection}}` - The collection name (e.g., `posts`)
-- `{{slug}}` - The entry slug (e.g., `my-article`)
-- `{{pr_number}}` - The Pull Request number
-- `{{timestamp}}` - Current timestamp in milliseconds
-- `{{title}}` - URL-encoded entry title
-
-##### Example configuration
-
-```yaml
-backend:
-  name: github
-  repo: owner/repo
-  preview_url: https://preview-{{branch_safe}}.example.com
-  # Or with more placeholders:
-  # preview_url: https://{{collection}}-{{slug}}.preview.example.com
-```
-
-##### Example GitHub Actions workflow
-
-```yaml
-name: Preview Deploy
-
-on:
-  repository_dispatch:
-    types: [sveltia-cms-preview]
-
-jobs:
-  deploy-preview:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.client_payload.branch }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build site
-        run: npm run build
-        env:
-          PREVIEW_BRANCH: ${{ github.event.client_payload.branch }}
-          PREVIEW_BRANCH_SAFE: ${{ github.event.client_payload.branch_safe }}
-
-      - name: Deploy to preview environment
-        # Add your deployment step here (Netlify, Vercel, Cloudflare Pages, etc.)
-        run: |
-          echo "Deploying preview for:"
-          echo "  Branch: ${{ github.event.client_payload.branch }}"
-          echo "  Branch (safe): ${{ github.event.client_payload.branch_safe }}"
-          echo "  Collection: ${{ github.event.client_payload.collection }}"
-          echo "  Slug: ${{ github.event.client_payload.slug }}"
-          echo "  PR: #${{ github.event.client_payload.pr_number }}"
-```
-
-The dispatch event payload includes:
-
-- `branch`: The entry's branch name (e.g., `cms/posts/my-article`)
-- `branch_safe`: URL-safe branch name (e.g., `cms-posts-my-article`)
-- `collection`: The collection name
-- `slug`: The entry slug
-- `prNumber`: The Pull Request number
-- `title`: The entry title
-
-<!-- prettier-ignore-start -->
-> [!NOTE]
-> If `preview_url` is not configured, the preview buttons will not appear in the workflow UI.
-<!-- prettier-ignore-end -->
-
-#### Current limitations
-
-- Editorial Workflow is only supported with the GitHub backend
-- Open Authoring is not yet supported
-- The workflow UI is a kanban board with three columns (Drafts, In Review, Ready)
-
 ### Disabling automatic deployments
 
 You may already have a CI/CD tool set up on your Git repository to automatically deploy changes to production. Occasionally, you make a lot of changes to your content to quickly reach the CI/CD provider’s (free) build limits, or you just don’t want to see builds triggered for every single small change.
@@ -2003,7 +1811,6 @@ You may already have a CI/CD tool set up on your Git repository to automatically
 With Sveltia CMS, you can disable automatic deployments by default and manually trigger deployments at your convenience. This is done by adding the `[skip ci]` prefix to commit messages, the convention supported by [GitHub Actions](https://docs.github.com/en/actions/managing-workflow-runs/skipping-workflow-runs), [GitLab CI/CD](https://docs.gitlab.com/ee/ci/pipelines/#skip-a-pipeline), [CircleCI](https://circleci.com/docs/skip-build/#skip-jobs), [Travis CI](https://docs.travis-ci.com/user/customizing-the-build/#skipping-a-build), [Netlify](https://docs.netlify.com/site-deploys/manage-deploys/#skip-a-deploy), [Cloudflare Pages](https://developers.cloudflare.com/pages/platform/branch-build-controls/#skip-builds) and others. Here are the steps to use it:
 
 1. Add the `skip_ci` property to your `backend` configuration with a value of `true`:
-
    ```yaml
    backend:
      name: github
@@ -2011,7 +1818,6 @@ With Sveltia CMS, you can disable automatic deployments by default and manually 
      branch: main
      skip_ci: true
    ```
-
 1. Commit and deploy the change to the config file and reload the CMS.
 1. Now, whenever you save an entry or asset, `[skip ci]` is automatically added to each commit message. However, deletions are always committed without the prefix to avoid unexpected data retention on your site.
 1. If you want to deploy a new or updated entry, as well as any other unpublished entries and assets, click an arrow next to the Save button in the Content Editor, then select **Save and Publish**. This will trigger CI/CD by omitting `[skip ci]`.
@@ -2024,7 +1830,6 @@ If the `skip_ci` property is defined, you can manually trigger a deployment by c
 
 - GitHub Actions:
   1. Without any configuration, Publish Changes will [trigger a `repository_dispatch` event](https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event) with the `sveltia-cms-publish` event type. Update your build workflow to receive this event:
-
      ```yaml
      on:
        push:
@@ -2032,7 +1837,6 @@ If the `skip_ci` property is defined, you can manually trigger a deployment by c
        repository_dispatch:
          types: [sveltia-cms-publish]
      ```
-
 - Other CI/CD providers:
   1. Select Settings under the Account button in the top right corner of the CMS.
   1. Select the Advanced tab.
@@ -2059,149 +1863,104 @@ Then, add the following origins depending on your Git backend and enabled integr
 
 - GitHub: (If you’re running a GitHub Enterprise Server, you’ll also need to add the origin to these directives.)
   - `img-src`
-
     ```
     https://*.githubusercontent.com
     ```
-
   - `connect-src`
-
     ```
     https://api.github.com https://www.githubstatus.com
     ```
-
 - GitLab: (If you’re running a self-hosted instance, you’ll also need to add the origin to these directives.)
   - `img-src`
-
     ```
     https://gitlab.com https://secure.gravatar.com
     ```
-
   - `connect-src`
-
     ```
     https://gitlab.com https://status-api.hostedstatus.com
     ```
-
 - Gitea/Forgejo: (If you’re running a self-hosted instance, use the origin instead.)
   - `img-src`
-
     ```
     https://gitea.com
     ```
-
   - `connect-src`
-
     ```
     https://gitea.com
     ```
-
 - OpenStreetMap: (used in the built-in Map widget)
   - `img-src`
-
     ```
     https://*.openstreetmap.org
     ```
-
   - `connect-src`
-
     ```
     https://*.openstreetmap.org
     ```
-
 - Cloudinary:
   - `img-src`
-
     ```
     https://res.cloudinary.com
     ```
-
     or a custom domain if configured
-
   - `frame-src`
-
     ```
     https://console.cloudinary.com
     ```
-
 - Uploadcare:
   - `img-src`
-
     ```
     https://*.ucarecd.net https://ucarecdn.com
     ```
-
     or a custom domain if configured
-
   - `connect-src`
-
     ```
     https://upload.uploadcare.com https://api.uploadcare.com
     ```
-
 - Pexels:
   - `img-src`
-
     ```
     https://images.pexels.com
     ```
-
   - `connect-src`
-
     ```
     https://images.pexels.com https://api.pexels.com
     ```
-
 - Pixabay:
   - `img-src`
-
     ```
     https://pixabay.com
     ```
-
   - `connect-src`
-
     ```
     https://pixabay.com
     ```
-
 - Unsplash:
   - `img-src`
-
     ```
     https://images.unsplash.com
     ```
-
   - `connect-src`
-
     ```
     https://images.unsplash.com https://api.unsplash.com
     ```
-
 - Google Cloud Translation:
   - `connect-src`
-
     ```
     https://translation.googleapis.com
     ```
-
 - Anthropic:
   - `connect-src`
-
     ```
     https://api.anthropic.com
     ```
-
 - OpenAI:
   - `connect-src`
-
     ```
     https://api.openai.com
     ```
-
 - YouTube:
   - `frame-src`
-
     ```
     https://www.youtube-nocookie.com
     ```
@@ -2210,14 +1969,11 @@ If you choose to [disable automatic deployments](#disabling-automatic-deployment
 
 - Netlify:
   - `connect-src`
-
     ```csp
     https://api.netlify.com
     ```
-
 - Cloudflare Pages
   - `connect-src`
-
     ```csp
     https://api.cloudflare.com
     ```
@@ -2286,7 +2042,7 @@ See also the [1.0 RC](https://github.com/sveltia/sveltia-cms/milestone/1) and [1
 
 Due mid-2026
 
-- Implementing [a few deferred Netlify/Decap CMS features](#current-limitations), including open authoring and nested collections, while addressing a number of bugs in their implementations
+- Implementing [a few deferred Netlify/Decap CMS features](#current-limitations), including editorial workflow and nested collections, while addressing a number of bugs in their implementations
   - They will probably first be included as beta features in v1.x releases
 - Tackling even more Netlify/Decap CMS issues, including:
   - [Manual entry sorting](https://github.com/sveltia/sveltia-cms/issues/214)[^125]
@@ -2384,13 +2140,13 @@ Sveltia CMS is not a service but a client-side application that runs in your web
 
 Depending on your CMS configuration, you will need to use an OAuth application hosted by yourself or a third party, such as Netlify or Cloudflare, to retrieve an access token from GitHub. Alternatively, you can provide an access token directly on the CMS’s sign-in page. In any case, your token is stored in your browser’s local storage, and subsequent API requests are made directly between your browser and the Git hosting provider.
 
-The CMS also integrates with various third-party services, including stock photo providers and translation services. These are "bring your own key” (BYOK) features that are entirely optional. You provide your own API keys for these services, which are stored in your browser’s local storage, and API requests are then made directly between your browser and the relevant service providers.
+The CMS also integrates with various third-party services, including stock photo providers and translation services. These are “bring your own key” (BYOK) features that are entirely optional. You provide your own API keys for these services, which are stored in your browser’s local storage, and API requests are then made directly between your browser and the relevant service providers.
 
 As we don’t collect any analytics data either, we don’t have a privacy policy. For third-party services, please refer to their respective privacy policies.
 
 ## Disclaimer
 
-This software is provided "as is” without any express or implied warranty. We are not obligated to provide any support for the application. This product is not affiliated with or endorsed by Netlify, Decap CMS or any other integrated services. All product names, logos, and brands are the property of their respective owners.
+This software is provided “as is” without any express or implied warranty. We are not obligated to provide any support for the application. This product is not affiliated with or endorsed by Netlify, Decap CMS or any other integrated services. All product names, logos, and brands are the property of their respective owners.
 
 ## Acknowledgements
 

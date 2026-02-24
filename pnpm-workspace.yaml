@@ -1,6 +1,9 @@
 minimumReleaseAge: 1440
 
 minimumReleaseAgeExclude:
+  - devalue
+  - svelte
+  - "@sveltejs/*"
   - "@sveltia/*"
 
 onlyBuiltDependencies:
@@ -11,4 +14,8 @@ onlyBuiltDependencies:
 
 overrides:
   esbuild@<=0.24.2: ">=0.25.0"
-  glob@>=11.0.0 <11.1.0: ">=11.1.0"
+
+auditConfig:
+  ignoreGhsas:
+    # https://github.com/advisories/GHSA-3ppc-4f35-3m26
+    - GHSA-3ppc-4f35-3m26

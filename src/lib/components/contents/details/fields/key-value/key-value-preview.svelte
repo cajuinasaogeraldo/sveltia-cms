@@ -2,6 +2,7 @@
   @component
   Implement the preview for a KeyValue field compatible with Static CMS.
   @see https://staticjscms.netlify.app/docs/widget-keyvalue
+  @see https://sveltiacms.app/en/docs/fields/keyvalue
 -->
 <script>
   import equal from 'fast-deep-equal';
@@ -75,7 +76,7 @@
       </tr>
     </thead>
     <tbody>
-      {#each pairs as [key, value]}
+      {#each pairs as [key, value], index (`${key}-${index}`)}
         <tr>
           <td>{key}</td>
           <td>{value}</td>

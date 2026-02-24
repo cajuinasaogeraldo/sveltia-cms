@@ -53,7 +53,8 @@ describe('Test resolveAssetFolderPaths()', () => {
     initialLocales: ['en'],
     defaultLocale: 'en',
     canonicalSlug: { key: 'translationKey', value: '{{slug}}' },
-    omitDefaultLocaleFromFileName: false,
+    omitDefaultLocaleFromFilePath: false,
+    omitDefaultLocaleFromPreviewPath: false,
   };
 
   /** @type {InternalI18nOptions} */
@@ -64,19 +65,31 @@ describe('Test resolveAssetFolderPaths()', () => {
       i18nSingleFile: false,
       i18nMultiFile: false,
       i18nMultiFolder: true,
-      i18nRootMultiFolder: false,
+      i18nMultiRootFolder: false,
     },
   };
 
   /** @type {InternalI18nOptions} */
-  const i18nRootMultiFolder = {
+  const i18nMultiRootFolder = {
     ...i18nBaseConfig,
     structure: 'multiple_folders_i18n_root',
     structureMap: {
       i18nSingleFile: false,
       i18nMultiFile: false,
       i18nMultiFolder: false,
-      i18nRootMultiFolder: true,
+      i18nMultiRootFolder: true,
+    },
+  };
+
+  /** @type {InternalI18nOptions} */
+  const i18nRootMultiFolders = {
+    ...i18nBaseConfig,
+    structure: 'multiple_root_folders',
+    structureMap: {
+      i18nSingleFile: false,
+      i18nMultiFile: false,
+      i18nMultiFolder: false,
+      i18nMultiRootFolder: true,
     },
   };
 
@@ -88,7 +101,7 @@ describe('Test resolveAssetFolderPaths()', () => {
       i18nSingleFile: false,
       i18nMultiFile: true,
       i18nMultiFolder: false,
-      i18nRootMultiFolder: false,
+      i18nMultiRootFolder: false,
     },
   };
 
@@ -100,7 +113,7 @@ describe('Test resolveAssetFolderPaths()', () => {
       i18nSingleFile: true,
       i18nMultiFile: false,
       i18nMultiFolder: false,
-      i18nRootMultiFolder: false,
+      i18nMultiRootFolder: false,
     },
   };
 
@@ -160,7 +173,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: relativeAssetFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/foo/images',
@@ -181,7 +199,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: relativeAssetFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo/index.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/foo/images',
@@ -194,7 +217,7 @@ describe('Test resolveAssetFolderPaths()', () => {
     const collection = {
       ...collectionBase,
       _file: { ..._file, subPath: '{{slug}}' },
-      _i18n: i18nRootMultiFolder,
+      _i18n: i18nMultiRootFolder,
     };
 
     await setupAssetFolder(relativeAssetFolder);
@@ -202,7 +225,38 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: relativeAssetFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
+      }),
+    ).toEqual({
+      resolvedInternalPath: 'src/content/blog/foo/images',
+      resolvedPublicPath: '../foo',
+    });
+  });
+
+  test('simple path, multiple root folders (new), entry relative', async () => {
+    /** @type {InternalCollection} */
+    const collection = {
+      ...collectionBase,
+      _file: { ..._file, subPath: '{{slug}}' },
+      _i18n: i18nRootMultiFolders,
+    };
+
+    await setupAssetFolder(relativeAssetFolder);
+
+    expect(
+      resolveAssetFolderPaths({
+        folder: relativeAssetFolder,
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/foo/images',
@@ -215,7 +269,7 @@ describe('Test resolveAssetFolderPaths()', () => {
     const collection = {
       ...collectionBase,
       _file: { ..._file, subPath: '{{slug}}/index' },
-      _i18n: i18nRootMultiFolder,
+      _i18n: i18nMultiRootFolder,
     };
 
     await setupAssetFolder(relativeAssetFolder);
@@ -223,7 +277,38 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: relativeAssetFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo/index.md',
+        },
+      }),
+    ).toEqual({
+      resolvedInternalPath: 'src/content/blog/foo/images',
+      resolvedPublicPath: '../../foo',
+    });
+  });
+
+  test('nested path, multiple root folders (new), entry relative', async () => {
+    /** @type {InternalCollection} */
+    const collection = {
+      ...collectionBase,
+      _file: { ..._file, subPath: '{{slug}}/index' },
+      _i18n: i18nRootMultiFolders,
+    };
+
+    await setupAssetFolder(relativeAssetFolder);
+
+    expect(
+      resolveAssetFolderPaths({
+        folder: relativeAssetFolder,
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo/index.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/foo/images',
@@ -244,7 +329,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: relativeAssetFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/images',
@@ -265,7 +355,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: relativeAssetFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo/index.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/foo/images',
@@ -286,7 +381,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: relativeAssetFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/images',
@@ -307,7 +407,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: relativeAssetFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo/index.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/foo/images',
@@ -362,7 +467,28 @@ describe('Test resolveAssetFolderPaths()', () => {
     const collection = {
       ...collectionBase,
       _file: { ..._file, subPath: '{{slug}}' },
-      _i18n: i18nRootMultiFolder,
+      _i18n: i18nMultiRootFolder,
+    };
+
+    await setupAssetFolder(absoluteAssetFolder);
+
+    expect(
+      resolveAssetFolderPaths({
+        folder: absoluteAssetFolder,
+        fillSlugOptions: { collection, content: {}, currentSlug },
+      }),
+    ).toEqual({
+      resolvedInternalPath: 'static/uploads/blog',
+      resolvedPublicPath: '/uploads/blog',
+    });
+  });
+
+  test('simple path, multiple root folders (new), entry absolute', async () => {
+    /** @type {InternalCollection} */
+    const collection = {
+      ...collectionBase,
+      _file: { ..._file, subPath: '{{slug}}' },
+      _i18n: i18nRootMultiFolders,
     };
 
     await setupAssetFolder(absoluteAssetFolder);
@@ -383,7 +509,28 @@ describe('Test resolveAssetFolderPaths()', () => {
     const collection = {
       ...collectionBase,
       _file: { ..._file, subPath: '{{slug}}/index' },
-      _i18n: i18nRootMultiFolder,
+      _i18n: i18nMultiRootFolder,
+    };
+
+    await setupAssetFolder(absoluteAssetFolder);
+
+    expect(
+      resolveAssetFolderPaths({
+        folder: absoluteAssetFolder,
+        fillSlugOptions: { collection, content: {}, currentSlug },
+      }),
+    ).toEqual({
+      resolvedInternalPath: 'static/uploads/blog',
+      resolvedPublicPath: '/uploads/blog',
+    });
+  });
+
+  test('nested path, multiple root folders (new), entry absolute', async () => {
+    /** @type {InternalCollection} */
+    const collection = {
+      ...collectionBase,
+      _file: { ..._file, subPath: '{{slug}}/index' },
+      _i18n: i18nRootMultiFolders,
     };
 
     await setupAssetFolder(absoluteAssetFolder);
@@ -518,7 +665,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: relativeAssetFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/foo/images',
@@ -549,7 +701,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo/index.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/foo/assets/media',
@@ -580,7 +737,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/uploads',
@@ -611,7 +773,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo/index.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/foo/media/files',
@@ -642,7 +809,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/static',
@@ -673,7 +845,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog',
@@ -704,7 +881,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog',
@@ -819,7 +1001,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: entryRelativeFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog',
@@ -847,7 +1034,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: entryRelativeFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog',
@@ -875,7 +1067,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: entryRelativeFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog',
@@ -903,7 +1100,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: entryRelativeFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo/index.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog/foo',
@@ -931,7 +1133,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: entryRelativeFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog',
@@ -959,7 +1166,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: entryRelativeFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog',
@@ -987,7 +1199,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: entryRelativeFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog',
@@ -1015,7 +1232,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: entryRelativeFolder,
-        fillSlugOptions: { collection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'src/content/blog/foo.md',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'src/content/blog',
@@ -1046,7 +1268,12 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: entryRelativeFolder,
-        fillSlugOptions: { collection: fileCollection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection: fileCollection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'data/foo',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'data',
@@ -1077,11 +1304,98 @@ describe('Test resolveAssetFolderPaths()', () => {
     expect(
       resolveAssetFolderPaths({
         folder: entryRelativeFolder,
-        fillSlugOptions: { collection: fileCollection, content: {}, currentSlug },
+        fillSlugOptions: {
+          collection: fileCollection,
+          content: {},
+          currentSlug,
+          entryFilePath: 'data/foo',
+        },
       }),
     ).toEqual({
       resolvedInternalPath: 'data',
       resolvedPublicPath: '',
+    });
+  });
+
+  test('nested path with date template tags uses entryFilePath to preserve date context', () => {
+    // This test demonstrates the critical issue where date-related template tags
+    // (e.g., {{year}}-{{month}}-{{day}}-{{slug}}/index) should use the already-resolved
+    // entryFilePath rather than reconstructing from templates to avoid saving assets
+    // in a different folder if the entry is updated at a later date.
+    /** @type {InternalCollection} */
+    const collection = {
+      ...collectionBase,
+      // subPath with date template tags - if reconstructed later with new dates,
+      // would create incorrect paths like: 2026-02-14-my-post/images
+      // instead of: 2024-01-01-my-post/images (where entry was created)
+      _file: { ..._file, subPath: '{{year}}-{{month}}-{{day}}-{{slug}}/index' },
+      _i18n: i18nMultiFile,
+    };
+
+    const entryRelativeFolder = {
+      collectionName: 'blog',
+      entryRelative: true,
+      hasTemplateTags: false,
+      internalPath: 'src/content/blog',
+      internalSubPath: 'images',
+      publicPath: '',
+    };
+
+    // entryFilePath has dates already filled in from when entry was created
+    // (2024-01-01-my-post/index.md)
+    expect(
+      resolveAssetFolderPaths({
+        folder: entryRelativeFolder,
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug: 'my-post',
+          // Entry created 2024-01-01, stored in this path with dates already filled
+          entryFilePath: 'src/content/blog/2024-01-01-my-post/index.md',
+        },
+      }),
+    ).toEqual({
+      // Assets should use same folder path with original dates, not reconstructed dates
+      resolvedInternalPath: 'src/content/blog/2024-01-01-my-post/images',
+      resolvedPublicPath: '',
+    });
+  });
+
+  test('simple path with date template tags preserves original entry folder', () => {
+    /** @type {InternalCollection} */
+    const collection = {
+      ...collectionBase,
+      _file: { ..._file, subPath: '{{year}}/{{month}}/{{slug}}' },
+      _i18n: i18nMultiFolder,
+    };
+
+    const entryRelativeFolder = {
+      collectionName: 'blog',
+      entryRelative: true,
+      hasTemplateTags: false,
+      internalPath: 'src/content/blog',
+      internalSubPath: 'assets',
+      publicPath: '',
+    };
+
+    // Entry created 2024-01-15, stored with dates from creation time
+    // The critical part: internal path uses entryFilePath to preserve original dates
+    expect(
+      resolveAssetFolderPaths({
+        folder: entryRelativeFolder,
+        fillSlugOptions: {
+          collection,
+          content: {},
+          currentSlug: 'my-post',
+          entryFilePath: 'src/content/blog/2024/01/my-post.md',
+        },
+      }),
+    ).toEqual({
+      // Assets stay in same dated folder (2024/01) not reconstructed with current date (2026/02)
+      resolvedInternalPath: 'src/content/blog/2024/01/my-post/assets',
+      // Note: publicPath will be recalculated based on current template context,
+      // but the internal storage location is what matters for asset preservation
+      resolvedPublicPath: expect.any(String),
     });
   });
 });
@@ -1449,12 +1763,13 @@ describe('Test replaceBlobURL()', () => {
         allLocales: ['en'],
         initialLocales: ['en'],
         canonicalSlug: { key: '', value: '' },
-        omitDefaultLocaleFromFileName: false,
+        omitDefaultLocaleFromFilePath: false,
+        omitDefaultLocaleFromPreviewPath: false,
         structureMap: {
           i18nSingleFile: true,
           i18nMultiFile: false,
           i18nMultiFolder: false,
-          i18nRootMultiFolder: false,
+          i18nMultiRootFolder: false,
         },
       },
       _file: {
@@ -1621,6 +1936,8 @@ describe('Test getAssetSavingInfo()', () => {
     mockGetFillSlugOptions.mockReturnValue({
       collection: draft.collection,
       content: {},
+      currentSlug: defaultLocaleSlug,
+      entryFilePath: 'src/content/blog/hello-world',
     });
 
     mockCreateEntryPath.mockReturnValue('src/content/blog/hello-world.md');

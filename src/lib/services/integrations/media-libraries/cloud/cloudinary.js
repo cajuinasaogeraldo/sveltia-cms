@@ -109,16 +109,28 @@ export const getLibraryOptions = (config) => {
 };
 
 /**
+ * @type {Map<string, CloudinaryMediaLibrary>}
+ */
+export const optionCacheMap = new Map();
+
+/**
  * Get merged Cloudinary library options from site and field config.
  * Field config options override site config options.
  * @param {MediaField} [fieldConfig] Field configuration.
  * @returns {CloudinaryMediaLibrary} Merged configuration object.
  */
 export const getMergedLibraryOptions = (fieldConfig) => {
+  const cacheKey = fieldConfig ? JSON.stringify(fieldConfig) : 'global';
+  const cache = optionCacheMap.get(cacheKey);
+
+  if (cache) {
+    return cache;
+  }
+
   const siteOptions = getLibraryOptions() ?? { config: {} };
   const fieldOptions = getLibraryOptions(fieldConfig) ?? { config: {} };
 
-  return {
+  const options = {
     ...siteOptions,
     ...fieldOptions,
     config: {
@@ -126,6 +138,10 @@ export const getMergedLibraryOptions = (fieldConfig) => {
       ...fieldOptions.config,
     },
   };
+
+  optionCacheMap.set(cacheKey, options);
+
+  return options;
 };
 
 /**
@@ -157,6 +173,7 @@ export const isEnabled = () => {
  * @returns {string} Transformation string. E.g. `w_400,c_scale`.
  * @see https://cloudinary.com/documentation/transformation_reference
  * @see https://decapcms.org/docs/cloudinary/#image-transformations
+ * @see https://sveltiacms.app/en/docs/media/cloudinary#image-transformations
  */
 export const transformationToString = (transformation) => {
   // Mapping from full parameter names to Cloudinary URL abbreviations
@@ -239,6 +256,7 @@ export const transformationToString = (transformation) => {
  * @param {MediaField} [options.fieldConfig] Field configuration for custom handling.
  * @returns {ExternalAsset[]} Assets.
  * @see https://decapcms.org/docs/cloudinary/#decap-cms-configuration-options
+ * @see https://sveltiacms.app/en/docs/media/cloudinary#configuration
  */
 export const parseResults = (results, { fieldConfig } = {}) => {
   const {

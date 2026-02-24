@@ -2,6 +2,7 @@
   @component
   Implement the editor for an Object field.
   @see https://decapcms.org/docs/widgets/#Object
+  @see https://sveltiacms.app/en/docs/fields/object
 -->
 <script>
   import { Button, Checkbox, Icon, TruncatedText } from '@sveltia/ui';
@@ -50,6 +51,7 @@
     /* eslint-disable prefer-const */
     locale,
     keyPath,
+    typedKeyPath,
     fieldLabel,
     fieldConfig,
     required = true,
@@ -135,7 +137,8 @@
         .map(([_keyPath, value]) => [`${keyPath}.${_keyPath}`, value]),
     );
 
-    const newValueMap = locale === defaultLocale ? newContent : copyDefaultLocaleValues(newContent);
+    const newValueMap =
+      locale === defaultLocale ? newContent : copyDefaultLocaleValues(newContent, locale);
 
     Object.entries($entryDraft?.[valueStoreKey] ?? {}).forEach(([_locale, _valueMap]) => {
       if (_locale === locale || i18n === 'duplicate') {
@@ -248,7 +251,7 @@
             <FieldEditor
               keyPath={subFieldKeyPath}
               typedKeyPath={hasVariableTypes && typeConfig?.name
-                ? `${keyPath}<${typeConfig.name}>.${subField.name}`
+                ? `${typedKeyPath}<${typeConfig.name}>.${subField.name}`
                 : subFieldKeyPath}
               {locale}
               fieldConfig={subField}

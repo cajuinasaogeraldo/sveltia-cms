@@ -1,4 +1,4 @@
-/* eslint-disable jsdoc/require-jsdoc, func-names, object-shorthand, no-unused-vars, no-plusplus */
+/* eslint-disable jsdoc/require-jsdoc, func-names, object-shorthand */
 
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -871,6 +871,40 @@ describe('getPathRegex', () => {
     expect(regex.test('Folder/File.txt')).toBe(true);
     expect(regex.test('folder/file.txt')).toBe(false);
   });
+
+  test('should handle brackets in path', () => {
+    const regex = getPathRegex('app/(pages)/index.md');
+
+    expect(regex.test('app/(pages)/index.md')).toBe(true);
+    expect(regex.test('app/pages/index.md')).toBe(false);
+  });
+
+  test('should handle brackets with template tags', () => {
+    const regex = getPathRegex('app/(pages)/{{slug}}.md');
+
+    expect(regex.test('app/(pages)/my-post.md')).toBe(true);
+    expect(regex.test('app/(pages)/another.md')).toBe(true);
+    expect(regex.test('app/pages/my-post.md')).toBe(false);
+  });
+
+  test('should handle multiple bracket groups with templates', () => {
+    const regex = getPathRegex('app/(content)/(writing)/{{slug}}/page.md');
+
+    expect(regex.test('app/(content)/(writing)/my-article/page.md')).toBe(true);
+    expect(regex.test('app/(content)/(writing)/another/page.md')).toBe(true);
+    expect(regex.test('app/content/writing/my-article/page.md')).toBe(false);
+  });
+
+  test('should handle empty path (root folder)', () => {
+    const regex = getPathRegex('');
+
+    // Should match any file at root
+    expect(regex.test('my-post.md')).toBe(true);
+    expect(regex.test('index.html')).toBe(true);
+    expect(regex.test('hello.txt')).toBe(true);
+    // Should not match empty path
+    expect(regex.test('')).toBe(false);
+  });
 });
 
 describe('parseTextFileInfo', () => {
@@ -1026,6 +1060,50 @@ describe('parseTextFileInfo', () => {
     expect(result.text).toBe('');
     expect(consoleErrorSpy).toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
+  });
+
+  test('should skip files larger than 10MB', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const handle = createMockFileHandle('large.txt');
+    // Create a file larger than 10MB
+
+    const largeFile = new File(['x'.repeat(11 * 1024 * 1024)], 'large.txt', {
+      type: 'text/plain',
+    });
+
+    handle.getFile = vi.fn(async () => largeFile);
+
+    const result = await parseTextFileInfo({
+      handle,
+      path: 'large.txt',
+      name: 'large.txt',
+      sha: '',
+      size: 0,
+      type: 'config',
+    });
+
+    expect(result.text).toBe('');
+    expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('is too large'));
+    consoleWarnSpy.mockRestore();
+  });
+
+  test('should process files under 10MB limit', async () => {
+    const handle = createMockFileHandle('normal.txt');
+    // Create a file under 10MB
+    const normalFile = new File(['normal content'], 'normal.txt', { type: 'text/plain' });
+
+    handle.getFile = vi.fn(async () => normalFile);
+
+    const result = await parseTextFileInfo({
+      handle,
+      path: 'normal.txt',
+      name: 'normal.txt',
+      sha: '',
+      size: 0,
+      type: 'config',
+    });
+
+    expect(result.text).toBe('normal content');
   });
 });
 
@@ -1235,40 +1313,48 @@ describe('deleteEmptyParentDirs', () => {
   test('should stop when directory is not empty', async () => {
     const dirHandle = createMockDirectoryHandle('folder');
 
-    // Mock keys() method for async iteration
+    // Mock entries() method for async iteration
     // @ts-ignore - Mock async iterator
-    // eslint-disable-next-line jsdoc/require-jsdoc
-    dirHandle.keys = vi.fn(() => ({
-      // eslint-disable-next-line jsdoc/require-jsdoc, func-names, object-shorthand
+    dirHandle.entries = vi.fn(() => ({
       [Symbol.asyncIterator]: async function* () {
-        yield 'file1.txt';
-        yield 'file2.txt';
+        yield ['file1.txt', createMockFileHandle('file1.txt')];
+        yield ['file2.txt', createMockFileHandle('file2.txt')];
       },
     }));
 
     /** @type {import('vitest').MockedFunction<any>} */ (
       rootDirHandle.getDirectoryHandle
-    ).mockResolvedValue(dirHandle);
+    ).mockImplementation(async (name) => {
+      if (name === '') return rootDirHandle;
+      if (name === 'folder') return dirHandle;
+
+      return createMockDirectoryHandle(/** @type {string} */ (name));
+    });
 
     await deleteEmptyParentDirs(rootDirHandle, ['folder']);
 
-    expect(dirHandle.removeEntry).not.toHaveBeenCalled();
+    expect(rootDirHandle.removeEntry).not.toHaveBeenCalled();
   });
 
   test('should delete empty directory when pathSegments has single item', async () => {
     const emptyDir = createMockDirectoryHandle('folder');
 
-    // Mock empty directory
+    // Mock empty directory with entries() returning nothing
     // @ts-ignore - Mock async iterator
-    emptyDir.keys = vi.fn(() => ({
+    emptyDir.entries = vi.fn(() => ({
       [Symbol.asyncIterator]: async function* () {
-        // empty
+        // empty - no entries
       },
     }));
 
     /** @type {import('vitest').MockedFunction<any>} */ (
       rootDirHandle.getDirectoryHandle
-    ).mockResolvedValue(emptyDir);
+    ).mockImplementation(async (name) => {
+      if (name === '') return rootDirHandle;
+      if (name === 'folder') return emptyDir;
+
+      return createMockDirectoryHandle(/** @type {string} */ (name));
+    });
 
     await deleteEmptyParentDirs(rootDirHandle, ['folder']);
 
@@ -1510,9 +1596,7 @@ describe('scanDir', () => {
     fileHandle.getFile = vi.fn().mockRejectedValue(new Error('Permission denied'));
 
     // @ts-ignore - Mock async iterator
-    // eslint-disable-next-line jsdoc/require-jsdoc
     dirHandle.entries = vi.fn(() => ({
-      // eslint-disable-next-line jsdoc/require-jsdoc, func-names, object-shorthand
       [Symbol.asyncIterator]: async function* () {
         yield ['error.txt', fileHandle];
       },
@@ -1523,6 +1607,7 @@ describe('scanDir', () => {
       scanningPaths: ['error.txt'],
       scanningPathsRegEx: [/error\.txt/],
       fileHandles,
+      pathRegexCache: new Map(),
     });
 
     // File handle is stored during scan; errors will occur later in parseFileHandleItem
@@ -1536,9 +1621,7 @@ describe('scanDir', () => {
     const parentDirHandle = createMockDirectoryHandle('parent');
 
     // @ts-ignore - Mock async iterator
-    // eslint-disable-next-line jsdoc/require-jsdoc
     parentDirHandle.entries = vi.fn(() => ({
-      // eslint-disable-next-line jsdoc/require-jsdoc, func-names, object-shorthand
       [Symbol.asyncIterator]: async function* () {
         yield ['nested', nestedDirHandle];
       },
@@ -1551,6 +1634,7 @@ describe('scanDir', () => {
         scanningPaths: ['other/path'],
         scanningPathsRegEx: [/^other\/path/],
         fileHandles,
+        pathRegexCache: new Map(),
       },
       'parent',
     );
@@ -1565,9 +1649,7 @@ describe('scanDir', () => {
     const gitignoreFile = createMockFileHandle('.gitignore');
 
     // @ts-ignore - Mock async iterator
-    // eslint-disable-next-line jsdoc/require-jsdoc
     dirHandle.entries = vi.fn(() => ({
-      // eslint-disable-next-line jsdoc/require-jsdoc, func-names, object-shorthand
       [Symbol.asyncIterator]: async function* () {
         yield ['.hidden', hiddenFile];
         yield ['.gitignore', gitignoreFile];
@@ -1579,6 +1661,7 @@ describe('scanDir', () => {
       scanningPaths: ['.hidden', '.gitignore'],
       scanningPathsRegEx: [/.*/],
       fileHandles,
+      pathRegexCache: new Map(),
     });
 
     // Only .gitignore should be included, .hidden should be skipped
@@ -1593,18 +1676,14 @@ describe('scanDir', () => {
     const parentDirHandle = createMockDirectoryHandle('parent');
 
     // @ts-ignore - Mock async iterator for parent
-    // eslint-disable-next-line jsdoc/require-jsdoc
     parentDirHandle.entries = vi.fn(() => ({
-      // eslint-disable-next-line jsdoc/require-jsdoc, func-names, object-shorthand
       [Symbol.asyncIterator]: async function* () {
         yield ['nested', nestedDirHandle];
       },
     }));
 
     // @ts-ignore - Mock async iterator for nested
-    // eslint-disable-next-line jsdoc/require-jsdoc
     nestedDirHandle.entries = vi.fn(() => ({
-      // eslint-disable-next-line jsdoc/require-jsdoc, func-names, object-shorthand
       [Symbol.asyncIterator]: async function* () {
         yield ['file.txt', fileHandle];
       },
@@ -1629,6 +1708,7 @@ describe('scanDir', () => {
         scanningPaths: ['parent/nested/file.txt'],
         scanningPathsRegEx: [/parent\/nested\/file\.txt/],
         fileHandles,
+        pathRegexCache: new Map(),
       },
       'parent',
     );
@@ -1785,40 +1865,211 @@ describe('collectScanningPaths', () => {
 });
 
 describe('getAllFiles', () => {
-  test('should return array of files', async () => {
-    // getAllFiles is integration-tested through scanDir tests
-    // It requires store configuration (allEntryFolders, allAssetFolders)
-    // and is primarily used in the loadFiles integration flow
-    expect(true).toBe(true);
+  /** @type {import('svelte/store').Writable<import('$lib/types/private').EntryFolderInfo[]>} */
+  let allEntryFolders;
+  /** @type {import('svelte/store').Writable<import('$lib/types/private').AssetFolderInfo[]>} */
+  let allAssetFolders;
+
+  beforeEach(async () => {
+    const contents = await import('$lib/services/contents');
+    const foldersModule = await import('$lib/services/assets/folders');
+
+    allEntryFolders = contents.allEntryFolders;
+    allAssetFolders = foldersModule.allAssetFolders;
+
+    allEntryFolders.set([]);
+    allAssetFolders.set([]);
+  });
+
+  test('should return array of BaseFileListItemProps for files found under a path', async () => {
+    allEntryFolders.set([
+      /** @type {any} */ ({
+        collectionName: 'posts',
+        folderPathMap: { folder: 'content/posts' },
+      }),
+    ]);
+    allAssetFolders.set([]);
+
+    const postsDir = createMockDirectoryHandle('posts');
+    const fileHandle = createMockFileHandle('post.md');
+    const contentDir = createMockDirectoryHandle('content');
+
+    // @ts-ignore
+    contentDir.entries = vi.fn(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        yield ['posts', postsDir];
+      },
+    }));
+
+    // @ts-ignore
+    postsDir.entries = vi.fn(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        yield ['post.md', fileHandle];
+      },
+    }));
+
+    const rootChildren = new Map([['content', contentDir]]);
+    const rootDirHandle = createMockDirectoryHandle('root', rootChildren);
+
+    // @ts-ignore
+    rootDirHandle.entries = vi.fn(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        yield ['content', contentDir];
+      },
+    }));
+
+    const { getAllFiles } = await import('./files');
+    const result = await getAllFiles(rootDirHandle);
+
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0]).toMatchObject({
+      handle: expect.anything(),
+      path: expect.any(String),
+      name: expect.any(String),
+      size: 0,
+      sha: '',
+    });
+  });
+
+  test('should return empty array when no scanning paths match', async () => {
+    allEntryFolders.set([]);
+    allAssetFolders.set([]);
+
+    const rootDirHandle = createMockDirectoryHandle('root');
+
+    // @ts-ignore
+    rootDirHandle.entries = vi.fn(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        // no entries
+      },
+    }));
+
+    const { getAllFiles } = await import('./files');
+    const result = await getAllFiles(rootDirHandle);
+
+    expect(result).toEqual([]);
   });
 });
 
 describe('loadFiles', () => {
-  test('should load and cache files from filesystem', async () => {
-    // This test demonstrates the core flow of loadFiles
-    // which is an integration function that coordinates multiple services
-    const rootDirHandle = createMockDirectoryHandle();
+  test('should load files and populate all stores', async () => {
+    vi.resetModules();
 
-    // Mock the getAllFiles function to return a simple file set
-    vi.doMock('./files', async () => {
-      const actual = await vi.importActual('./files');
+    const mockEntries = [/** @type {any} */ ({ id: '1', slug: 'post-1' })];
+    /** @type {any[]} */
+    const mockErrors = [];
+    const mockAllEntries = { set: vi.fn() };
+    const mockAllAssets = { set: vi.fn() };
+    const mockGitConfigFiles = { set: vi.fn() };
+    const mockEntryParseErrors = { set: vi.fn() };
+    const mockDataLoaded = { set: vi.fn() };
+
+    const fakeFile = {
+      handle: /** @type {any} */ ({
+        name: 'post.md',
+        getFile: vi.fn(async () => new File(['# Post'], 'post.md')),
+      }),
+      path: 'content/posts/post.md',
+      name: 'post.md',
+      size: 0,
+      sha: '',
+    };
+
+    const fakeAssetFile = {
+      handle: /** @type {any} */ ({
+        name: 'image.png',
+        getFile: vi.fn(async () => new File([''], 'image.png', { type: 'image/png' })),
+      }),
+      path: 'static/image.png',
+      name: 'image.png',
+      size: 0,
+      sha: '',
+    };
+
+    const fakeConfigFile = {
+      handle: /** @type {any} */ ({
+        name: 'netlify.toml',
+        getFile: vi.fn(async () => new File(['[build]'], 'netlify.toml')),
+      }),
+      path: 'netlify.toml',
+      name: 'netlify.toml',
+      size: 0,
+      sha: '',
+    };
+
+    const { writable: writ } = await import('svelte/store');
+
+    vi.doMock('$lib/services/contents', () => ({
+      allEntries: mockAllEntries,
+      allEntryFolders: writ([]),
+      dataLoaded: mockDataLoaded,
+      entryParseErrors: mockEntryParseErrors,
+    }));
+
+    vi.doMock('$lib/services/assets', () => ({
+      allAssets: mockAllAssets,
+    }));
+
+    vi.doMock('$lib/services/assets/folders', () => ({
+      allAssetFolders: writ([]),
+    }));
+
+    vi.doMock('$lib/services/backends/git/shared/config', () => ({
+      GIT_CONFIG_FILE_REGEX: /^\.gitconfig$/,
+      gitConfigFiles: mockGitConfigFiles,
+    }));
+
+    vi.doMock('$lib/services/backends/process', () => ({
+      createFileList: vi.fn(() => ({
+        entryFiles: [fakeFile],
+        assetFiles: [fakeAssetFile],
+        configFiles: [fakeConfigFile],
+      })),
+    }));
+
+    vi.doMock('$lib/services/contents/file/process', () => ({
+      prepareEntries: vi.fn(async () => ({ entries: mockEntries, errors: mockErrors })),
+    }));
+
+    vi.doMock('@sveltia/utils/file', () => ({
+      getPathInfo: vi.fn((path) => ({ ext: path.split('.').pop() ?? '', base: path })),
+      readAsText: vi.fn(async () => '# Post'),
+    }));
+
+    vi.doMock('$lib/services/utils/file', async () => {
+      const actual = /** @type {any} */ (await vi.importActual('$lib/services/utils/file'));
 
       return {
         ...actual,
-        getAllFiles: vi.fn(async () => [
-          {
-            handle: createMockFileHandle('post.md'),
-            path: 'entries/post.md',
-            name: 'post.md',
-            size: 0,
-            sha: '',
-            type: 'entry',
-          },
-        ]),
+        getGitHash: vi.fn(async () => 'abc123'),
+        getBlob: vi.fn(() => 'blob:http://localhost/fake'),
       };
     });
 
-    expect(true).toBe(true);
+    vi.doMock('$lib/services/assets/kinds', () => ({
+      getAssetKind: vi.fn(() => 'image'),
+    }));
+
+    const { loadFiles } = await import('./files');
+    // Root handle with no entries — collectScanningPaths returns [] so getAllFiles returns []
+    // But createFileList will be called with the empty result, returning our mocked files
+    const rootDirHandle = createMockDirectoryHandle('root');
+
+    // @ts-ignore
+    rootDirHandle.entries = vi.fn(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        // empty — scanning paths are [] so nothing matches
+      },
+    }));
+
+    await loadFiles(rootDirHandle);
+
+    expect(mockAllEntries.set).toHaveBeenCalledWith(mockEntries);
+    expect(mockAllAssets.set).toHaveBeenCalledWith(expect.any(Array));
+    expect(mockDataLoaded.set).toHaveBeenCalledWith(true);
+    expect(mockEntryParseErrors.set).toHaveBeenCalledWith(mockErrors);
+    expect(mockGitConfigFiles.set).toHaveBeenCalledWith(expect.any(Array));
   });
 });
 
@@ -1865,6 +2116,7 @@ describe('scanDir - directory recursion scenarios', () => {
       scanningPaths: ['level1/level2/file.txt'],
       scanningPathsRegEx: [/level1\/level2\/file\.txt/],
       fileHandles,
+      pathRegexCache: new Map(),
     });
 
     expect(fileHandles).toHaveLength(1);
@@ -1899,6 +2151,7 @@ describe('scanDir - directory recursion scenarios', () => {
         scanningPaths: ['parent/posts/{{slug}}/index.md'],
         scanningPathsRegEx: [/parent\/posts\/.+?\/index\.md/],
         fileHandles,
+        pathRegexCache: new Map(),
       },
       'parent',
     );
@@ -1926,6 +2179,7 @@ describe('scanDir - directory recursion scenarios', () => {
         scanningPaths: ['parent/.hidden/file.txt'],
         scanningPathsRegEx: [/parent\/\.hidden\/file\.txt/],
         fileHandles,
+        pathRegexCache: new Map(),
       },
       'parent',
     );
@@ -1950,6 +2204,7 @@ describe('scanDir - directory recursion scenarios', () => {
       scanningPaths: ['file.txt'],
       scanningPathsRegEx: [/^file\.txt$/],
       fileHandles,
+      pathRegexCache: new Map(),
     });
 
     // Should find the file since the regex matches

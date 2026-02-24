@@ -44,6 +44,10 @@ describe('Test detectFileExtension()', () => {
     expect(detectFileExtension({ format: 'json' })).toBe('json');
   });
 
+  test('returns txt for raw format', () => {
+    expect(detectFileExtension({ format: /** @type {any} */ ('raw') })).toBe('txt');
+  });
+
   test('returns md as default', () => {
     expect(detectFileExtension({})).toBe('md');
     expect(detectFileExtension({ format: /** @type {any} */ ('unknown') })).toBe('md');
@@ -107,7 +111,8 @@ describe('Test getEntryPathRegEx()', () => {
     initialLocales: ['en', 'fr'],
     defaultLocale: 'en',
     structure: /** @type {'single_file'} */ ('single_file'),
-    omitDefaultLocaleFromFileName: false,
+    omitDefaultLocaleFromFilePath: false,
+    omitDefaultLocaleFromPreviewPath: false,
     canonicalSlug: { key: 'translationKey', value: '{{slug}}' },
   };
 
@@ -118,7 +123,7 @@ describe('Test getEntryPathRegEx()', () => {
         i18nSingleFile: false,
         i18nMultiFile: false,
         i18nMultiFolder: false,
-        i18nRootMultiFolder: false,
+        i18nMultiRootFolder: false,
       },
     };
 
@@ -140,7 +145,7 @@ describe('Test getEntryPathRegEx()', () => {
         i18nSingleFile: false,
         i18nMultiFile: false,
         i18nMultiFolder: false,
-        i18nRootMultiFolder: false,
+        i18nMultiRootFolder: false,
       },
     };
 
@@ -163,7 +168,7 @@ describe('Test getEntryPathRegEx()', () => {
         i18nSingleFile: false,
         i18nMultiFile: false,
         i18nMultiFolder: false,
-        i18nRootMultiFolder: false,
+        i18nMultiRootFolder: false,
       },
     };
 
@@ -188,7 +193,7 @@ describe('Test getEntryPathRegEx()', () => {
         i18nSingleFile: false,
         i18nMultiFile: true,
         i18nMultiFolder: false,
-        i18nRootMultiFolder: false,
+        i18nMultiRootFolder: false,
       },
     };
 
@@ -204,15 +209,15 @@ describe('Test getEntryPathRegEx()', () => {
     expect('content/posts/my-post.fr.md'.match(regex)?.groups?.locale).toBe('fr');
   });
 
-  test('generates regex with omitDefaultLocaleFromFileName', () => {
+  test('generates regex with omitDefaultLocaleFromFilePath', () => {
     const _i18n = {
       ...baseI18nOptions,
-      omitDefaultLocaleFromFileName: true,
+      omitDefaultLocaleFromFilePath: true,
       structureMap: {
         i18nSingleFile: false,
         i18nMultiFile: true,
         i18nMultiFolder: false,
-        i18nRootMultiFolder: false,
+        i18nMultiRootFolder: false,
       },
     };
 
@@ -235,7 +240,7 @@ describe('Test getEntryPathRegEx()', () => {
         i18nSingleFile: false,
         i18nMultiFile: false,
         i18nMultiFolder: true,
-        i18nRootMultiFolder: false,
+        i18nMultiRootFolder: false,
       },
     };
 
@@ -258,7 +263,7 @@ describe('Test getEntryPathRegEx()', () => {
         i18nSingleFile: false,
         i18nMultiFile: false,
         i18nMultiFolder: false,
-        i18nRootMultiFolder: true,
+        i18nMultiRootFolder: true,
       },
     };
 
@@ -281,7 +286,7 @@ describe('Test getEntryPathRegEx()', () => {
         i18nSingleFile: false,
         i18nMultiFile: false,
         i18nMultiFolder: false,
-        i18nRootMultiFolder: false,
+        i18nMultiRootFolder: false,
       },
     };
 
@@ -294,6 +299,148 @@ describe('Test getEntryPathRegEx()', () => {
 
     expect(regex.source).toBe('^(?<subPath>[^/]+?)\\.md$');
     expect('my-post.md'.match(regex)?.groups?.subPath).toBe('my-post');
+  });
+
+  test('handles brackets in subPath', () => {
+    const _i18n = {
+      ...baseI18nOptions,
+      structureMap: {
+        i18nSingleFile: false,
+        i18nMultiFile: false,
+        i18nMultiFolder: false,
+        i18nMultiRootFolder: false,
+      },
+    };
+
+    const regex = getEntryPathRegEx({
+      extension: 'md',
+      format: 'frontmatter',
+      basePath: 'app/(content)/(writing)',
+      subPath: '{{slug}}/page',
+      _i18n,
+    });
+
+    // Brackets should be escaped literally in the regex
+    expect(regex.source).toBe(
+      '^app\\/\\(content\\)\\/\\(writing\\)\\/(?<subPath>[^/]+?\\/page)\\.md$',
+    );
+    expect('app/(content)/(writing)/my-post/page.md'.match(regex)?.groups?.subPath).toBe(
+      'my-post/page',
+    );
+    // Should not match without the brackets
+    expect('app/content/writing/my-post/page.md'.match(regex)).toBeNull();
+  });
+
+  test('handles mixed brackets and placeholders in subPath', () => {
+    const _i18n = {
+      ...baseI18nOptions,
+      structureMap: {
+        i18nSingleFile: false,
+        i18nMultiFile: false,
+        i18nMultiFolder: false,
+        i18nMultiRootFolder: false,
+      },
+    };
+
+    const regex = getEntryPathRegEx({
+      extension: 'md',
+      format: 'frontmatter',
+      basePath: 'content',
+      subPath: '(draft)/{{status}}/{{slug}}',
+      _i18n,
+    });
+
+    // Brackets should be escaped, placeholders should become wildcard patterns
+    expect(regex.source).toBe('^content\\/(?<subPath>\\(draft\\)\\/[^/]+?\\/[^/]+?)\\.md$');
+    expect('content/(draft)/published/my-post.md'.match(regex)?.groups?.subPath).toBe(
+      '(draft)/published/my-post',
+    );
+    // Should not match with different structure
+    expect('content/draft/published/my-post.md'.match(regex)).toBeNull();
+  });
+
+  test('handles brackets in both basePath and subPath', () => {
+    const _i18n = {
+      ...baseI18nOptions,
+      structureMap: {
+        i18nSingleFile: false,
+        i18nMultiFile: false,
+        i18nMultiFolder: false,
+        i18nMultiRootFolder: false,
+      },
+    };
+
+    const regex = getEntryPathRegEx({
+      extension: 'mdx',
+      format: 'frontmatter',
+      basePath: 'app/(pages)',
+      subPath: '{{slug}}/page',
+      _i18n,
+    });
+
+    // Both basePath and subPath brackets should be escaped
+    expect(regex.source).toBe('^app\\/\\(pages\\)\\/(?<subPath>[^/]+?\\/page)\\.mdx$');
+    expect('app/(pages)/my-article/page.mdx'.match(regex)?.groups?.subPath).toBe('my-article/page');
+    // Should not match without brackets in basePath
+    expect('app/pages/my-article/page.md'.match(regex)).toBeNull();
+  });
+
+  test('generates regex with omitDefaultLocaleFromFilePath and multi-folder i18n', () => {
+    const _i18n = {
+      ...baseI18nOptions,
+      omitDefaultLocaleFromFilePath: true,
+      structureMap: {
+        i18nSingleFile: false,
+        i18nMultiFile: false,
+        i18nMultiFolder: true,
+        i18nMultiRootFolder: false,
+      },
+    };
+
+    const regex = getEntryPathRegEx({
+      extension: 'md',
+      format: 'frontmatter',
+      basePath: 'content/posts',
+      _i18n,
+    });
+
+    // Locale folder becomes optional, allowing both 'en/...' and '...' patterns
+    expect(regex.source).toBe('^content\\/posts\\/(?:(?<locale>fr)\\/)?(?<subPath>[^/]+?)\\.md$');
+    // Default locale (en) - no folder
+    expect('content/posts/my-post.md'.match(regex)?.groups?.locale).toBeUndefined();
+    expect('content/posts/my-post.md'.match(regex)?.groups?.subPath).toBe('my-post');
+    // Non-default locale (fr) - with folder
+    expect('content/posts/fr/my-post.md'.match(regex)?.groups?.locale).toBe('fr');
+    expect('content/posts/fr/my-post.md'.match(regex)?.groups?.subPath).toBe('my-post');
+  });
+
+  test('generates regex with omitDefaultLocaleFromFilePath and root multi-folder i18n', () => {
+    const _i18n = {
+      ...baseI18nOptions,
+      omitDefaultLocaleFromFilePath: true,
+      structureMap: {
+        i18nSingleFile: false,
+        i18nMultiFile: false,
+        i18nMultiFolder: false,
+        i18nMultiRootFolder: true,
+      },
+    };
+
+    const regex = getEntryPathRegEx({
+      extension: 'md',
+      format: 'frontmatter',
+      basePath: 'content/posts',
+      _i18n,
+    });
+
+    // Root locale folder becomes optional, allowing both 'en/...' and '...' patterns
+    expect(regex.source).toBe('^(?:(?<locale>fr)\\/)?content\\/posts\\/(?<subPath>[^/]+?)\\.md$');
+    // Default locale (en) - no root folder
+    expect('content/posts/my-post.md'.match(regex)?.groups?.locale).toBeUndefined();
+    expect('content/posts/my-post.md'.match(regex)?.groups?.subPath).toBe('my-post');
+    // Non-default locale (fr) - with root folder
+    expect('fr/content/posts/my-post.md'.match(regex)?.groups?.locale).toBe('fr');
+    expect('fr/content/posts/my-post.md'.match(regex)?.groups?.subPath).toBe('my-post');
   });
 });
 
@@ -387,10 +534,11 @@ describe('Test getFileConfig()', () => {
       i18nSingleFile: false,
       i18nMultiFile: false,
       i18nMultiFolder: false,
-      i18nRootMultiFolder: false,
+      i18nMultiRootFolder: false,
     },
     canonicalSlug: { key: 'translationKey', value: '{{slug}}' },
-    omitDefaultLocaleFromFileName: false,
+    omitDefaultLocaleFromFilePath: false,
+    omitDefaultLocaleFromPreviewPath: false,
   };
 
   /** @type {InternalI18nOptions} */
@@ -404,10 +552,11 @@ describe('Test getFileConfig()', () => {
       i18nSingleFile: true,
       i18nMultiFile: false,
       i18nMultiFolder: false,
-      i18nRootMultiFolder: false,
+      i18nMultiRootFolder: false,
     },
     canonicalSlug: { key: 'translationKey', value: '{{slug}}' },
-    omitDefaultLocaleFromFileName: false,
+    omitDefaultLocaleFromFilePath: false,
+    omitDefaultLocaleFromPreviewPath: false,
   };
 
   /** @type {InternalI18nOptions} */
@@ -421,10 +570,11 @@ describe('Test getFileConfig()', () => {
       i18nSingleFile: false,
       i18nMultiFile: true,
       i18nMultiFolder: false,
-      i18nRootMultiFolder: false,
+      i18nMultiRootFolder: false,
     },
     canonicalSlug: { key: 'translationKey', value: '{{slug}}' },
-    omitDefaultLocaleFromFileName: false,
+    omitDefaultLocaleFromFilePath: false,
+    omitDefaultLocaleFromPreviewPath: false,
   };
 
   /** @type {InternalI18nOptions} */
@@ -438,14 +588,15 @@ describe('Test getFileConfig()', () => {
       i18nSingleFile: false,
       i18nMultiFile: false,
       i18nMultiFolder: true,
-      i18nRootMultiFolder: false,
+      i18nMultiRootFolder: false,
     },
     canonicalSlug: { key: 'translationKey', value: '{{slug}}' },
-    omitDefaultLocaleFromFileName: false,
+    omitDefaultLocaleFromFilePath: false,
+    omitDefaultLocaleFromPreviewPath: false,
   };
 
   /** @type {InternalI18nOptions} */
-  const i18nRootMultiFolder = {
+  const i18nMultiRootFolder = {
     i18nEnabled: true,
     allLocales: ['en', 'fr'],
     initialLocales: ['en', 'fr'],
@@ -455,10 +606,11 @@ describe('Test getFileConfig()', () => {
       i18nSingleFile: false,
       i18nMultiFile: false,
       i18nMultiFolder: false,
-      i18nRootMultiFolder: true,
+      i18nMultiRootFolder: true,
     },
     canonicalSlug: { key: 'translationKey', value: '{{slug}}' },
-    omitDefaultLocaleFromFileName: false,
+    omitDefaultLocaleFromFilePath: false,
+    omitDefaultLocaleFromPreviewPath: false,
   };
 
   test('entry collection without i18n', () => {
@@ -859,7 +1011,7 @@ describe('Test getFileConfig()', () => {
         rawCollection: {
           ...rawFolderCollection,
         },
-        _i18n: i18nRootMultiFolder,
+        _i18n: i18nMultiRootFolder,
       }),
     ).toEqual({
       extension: 'md',
@@ -878,7 +1030,7 @@ describe('Test getFileConfig()', () => {
           ...rawFolderCollection,
           path: '{{slug}}/index',
         },
-        _i18n: i18nRootMultiFolder,
+        _i18n: i18nMultiRootFolder,
       }),
     ).toEqual({
       extension: 'md',
@@ -898,7 +1050,7 @@ describe('Test getFileConfig()', () => {
           path: '{{slug}}/index',
           format: 'yaml-frontmatter',
         },
-        _i18n: i18nRootMultiFolder,
+        _i18n: i18nMultiRootFolder,
       }),
     ).toEqual({
       extension: 'md',
@@ -918,7 +1070,7 @@ describe('Test getFileConfig()', () => {
           extension: 'yml',
           yaml_quote: true,
         },
-        _i18n: i18nRootMultiFolder,
+        _i18n: i18nMultiRootFolder,
       }),
     ).toEqual({
       extension: 'yml',
@@ -937,7 +1089,7 @@ describe('Test getFileConfig()', () => {
           ...rawFolderCollection,
           extension: 'json',
         },
-        _i18n: i18nRootMultiFolder,
+        _i18n: i18nMultiRootFolder,
       }),
     ).toEqual({
       extension: 'json',
@@ -1444,5 +1596,25 @@ describe('Test getFileConfig()', () => {
     // When index_file is defined, indexFileName should be added to the regex as an alternative
     // The regex should contain the pattern: (?<subPath>{{slug}}|_index)
     expect(result.fullPathRegEx?.toString()).toContain('_index');
+  });
+
+  test('entry collection with empty folder (root)', () => {
+    const result = getFileConfig({
+      rawCollection: {
+        name: 'root-posts',
+        folder: '',
+        fields: [],
+      },
+      _i18n: i18nDisabled,
+    });
+
+    // Should generate regex that matches files at root
+    expect(result.basePath).toBe('');
+    expect(result.fullPathRegEx).toBeDefined();
+    // The regex pattern for empty basePath should be: ^(?<subPath>[^/]+?)\.md$
+    expect(result.fullPathRegEx?.source).toBe('^(?<subPath>[^/]+?)\\.md$');
+    // The regex should match root-level files
+    expect(result.fullPathRegEx?.test('my-post.md')).toBe(true);
+    expect(result.fullPathRegEx?.test('index.md')).toBe(true);
   });
 });

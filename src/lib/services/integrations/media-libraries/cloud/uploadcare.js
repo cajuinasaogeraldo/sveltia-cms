@@ -69,6 +69,7 @@ export const isEnabled = () => !!getPublicKey();
  * @param {MediaField} [options.fieldConfig] Field configuration for custom handling.
  * @returns {ExternalAsset[]} Assets.
  * @see https://decapcms.org/docs/uploadcare/#integration-settings
+ * @see https://sveltiacms.app/en/docs/media/uploadcare
  */
 export const parseResults = (results, { fieldConfig } = {}) => {
   const {
@@ -87,20 +88,20 @@ export const parseResults = (results, { fieldConfig } = {}) => {
     } = result;
 
     const baseURL = `${new URL(cdnBase ?? url).origin}/${uuid}/`;
+    const isImage = mimeType.startsWith('image/');
+    const isVideo = mimeType.startsWith('video/');
 
     return {
       id: uuid,
       description: fileName,
-      previewURL: `${baseURL}-/preview/400x400/`,
-      downloadURL: `${baseURL}${defaultOperations ? `-${defaultOperations}` : ''}${autoFilename ? fileName : ''}`,
+      previewURL: `${baseURL}${isImage ? '-/preview/400x400/' : ''}`,
+      downloadURL:
+        `${baseURL}${isImage && defaultOperations ? `-${defaultOperations}` : ''}` +
+        `${autoFilename ? fileName : ''}`,
       fileName,
       lastModified: new Date(timestamp),
       size,
-      kind: mimeType.startsWith('image/')
-        ? 'image'
-        : mimeType.startsWith('video/')
-          ? 'video'
-          : 'other',
+      kind: isImage ? 'image' : isVideo ? 'video' : 'other',
     };
   });
 };

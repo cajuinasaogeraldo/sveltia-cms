@@ -327,4 +327,139 @@ describe('isFormatMismatch', () => {
       expect(isFormatMismatch('html', 'frontmatter')).toBe(true);
     });
   });
+
+  describe('raw format', () => {
+    it('should return false for raw format with any extension and fields', () => {
+      const fields = [{ name: 'body', widget: 'code' }];
+
+      expect(isFormatMismatch('json', 'raw', fields)).toBe(false);
+    });
+
+    it('should return false for raw format regardless of field configuration', () => {
+      const fields = [{ name: 'title', widget: 'string' }];
+
+      expect(isFormatMismatch('txt', 'raw', fields)).toBe(false);
+    });
+
+    it('should return false for raw format with no fields', () => {
+      expect(isFormatMismatch('html', 'raw', [])).toBe(false);
+    });
+  });
+
+  describe('special case: single body field with front-matter format', () => {
+    it('should return false when body code field with yaml-frontmatter format', () => {
+      const fields = [{ name: 'body', widget: 'code' }];
+
+      expect(isFormatMismatch('json', 'yaml-frontmatter', fields)).toBe(false);
+    });
+
+    it('should return false when body markdown field with toml-frontmatter format', () => {
+      const fields = [{ name: 'body', widget: 'markdown' }];
+
+      expect(isFormatMismatch('yaml', 'toml-frontmatter', fields)).toBe(false);
+    });
+
+    it('should return false when body richtext field with json-frontmatter format', () => {
+      const fields = [{ name: 'body', widget: 'richtext' }];
+
+      expect(isFormatMismatch('toml', 'json-frontmatter', fields)).toBe(false);
+    });
+
+    it('should return false when body text field with yaml-frontmatter format', () => {
+      const fields = [{ name: 'body', widget: 'text' }];
+
+      expect(isFormatMismatch('json', 'yaml-frontmatter', fields)).toBe(false);
+    });
+
+    it('should return false when body code field with frontmatter auto-detect format', () => {
+      const fields = [{ name: 'body', widget: 'code' }];
+
+      expect(isFormatMismatch('json', 'frontmatter', fields)).toBe(false);
+    });
+
+    it('should return true when body code field with non-frontmatter format', () => {
+      const fields = [{ name: 'body', widget: 'code' }];
+
+      // Special case only applies to front-matter formats
+      expect(isFormatMismatch('json', 'yaml', fields)).toBe(true);
+    });
+
+    it('should return false when body field with string widget and raw format', () => {
+      const fields = [{ name: 'body', widget: 'string' }];
+
+      // raw format never triggers mismatch regardless of field configuration
+      expect(isFormatMismatch('json', 'raw', fields)).toBe(false);
+    });
+
+    it('should return true when body field with string widget and frontmatter format', () => {
+      const fields = [{ name: 'body', widget: 'string' }];
+
+      // Widget is 'string', not in bodyFieldType, so normal rules apply
+      expect(isFormatMismatch('json', 'yaml-frontmatter', fields)).toBe(true);
+    });
+
+    it('should return false when non-body field with code widget and raw format', () => {
+      const fields = [{ name: 'content', widget: 'code' }];
+
+      // raw format never triggers mismatch regardless of field configuration
+      expect(isFormatMismatch('json', 'raw', fields)).toBe(false);
+    });
+
+    it('should return true when non-body field with code widget and frontmatter format', () => {
+      const fields = [{ name: 'content', widget: 'code' }];
+
+      // Not named 'body', so normal rules apply
+      expect(isFormatMismatch('json', 'yaml-frontmatter', fields)).toBe(true);
+    });
+
+    it('should return false when multiple fields including body code field with raw format', () => {
+      const fields = [
+        { name: 'body', widget: 'code' },
+        { name: 'title', widget: 'string' },
+      ];
+
+      // raw format never triggers mismatch regardless of field configuration
+      expect(isFormatMismatch('json', 'raw', fields)).toBe(false);
+    });
+
+    it('should return true when multiple fields including body code field with frontmatter', () => {
+      const fields = [
+        { name: 'body', widget: 'code' },
+        { name: 'title', widget: 'string' },
+      ];
+
+      // More than one field, so normal rules apply
+      expect(isFormatMismatch('json', 'yaml-frontmatter', fields)).toBe(true);
+    });
+
+    it('should return false when body field with undefined widget and raw format', () => {
+      const fields = [{ name: 'body' }];
+
+      // raw format never triggers mismatch regardless of field configuration
+      expect(isFormatMismatch('json', 'raw', fields)).toBe(false);
+    });
+
+    it('should return true when body field with undefined widget and frontmatter format', () => {
+      const fields = [{ name: 'body' }];
+
+      // Widget defaults to 'string', not in bodyFieldType, so normal rules apply
+      expect(isFormatMismatch('json', 'yaml-frontmatter', fields)).toBe(true);
+    });
+
+    it('should return false when markdown extension with body code field and frontmatter', () => {
+      const fields = [{ name: 'body', widget: 'code' }];
+
+      // Markdown + frontmatter is always valid, special case also applies
+      expect(isFormatMismatch('md', 'frontmatter', fields)).toBe(false);
+    });
+  });
+
+  describe('unknown format', () => {
+    it('should return false for unknown format with any extension (line 83)', () => {
+      // Unknown formats don't enforce mismatch
+      expect(isFormatMismatch('csv', 'csv')).toBe(false);
+      expect(isFormatMismatch('txt', 'custom-format')).toBe(false);
+      expect(isFormatMismatch('xml', 'xml-schema')).toBe(false);
+    });
+  });
 });

@@ -2,6 +2,7 @@
   @component
   Implement the preview for a List field with subfield(s).
   @see https://decapcms.org/docs/widgets/#List
+  @see https://sveltiacms.app/en/docs/fields/list
 -->
 <script>
   import { isObject } from '@sveltia/utils/object';
@@ -35,6 +36,7 @@
     /* eslint-disable prefer-const */
     locale,
     keyPath,
+    typedKeyPath,
     fieldConfig,
     /* eslint-enable prefer-const */
   } = $props();
@@ -76,8 +78,8 @@
           <FieldPreview
             keyPath={hasSingleSubField ? itemKeyPath : `${itemKeyPath}.${subField.name}`}
             typedKeyPath={hasVariableTypes
-              ? `${keyPath}.*<${subFieldName}>.${subField.name}`
-              : `${keyPath}.*.${subField.name}`}
+              ? `${typedKeyPath}.*<${subFieldName}>.${subField.name}`
+              : `${typedKeyPath}.*.${subField.name}`}
             {locale}
             fieldConfig={subField}
           />

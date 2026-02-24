@@ -143,6 +143,11 @@ export const parseEntryFile = async ({ text = '', path, folder: { collectionName
     return customParser(text);
   }
 
+  // Raw format: return the content as-is
+  if (format === 'raw') {
+    return { body: text };
+  }
+
   try {
     if (format === 'yaml' || format === 'yml') {
       return parseYAML(text);
@@ -164,7 +169,6 @@ export const parseEntryFile = async ({ text = '', path, folder: { collectionName
       return parseFrontMatter({
         collection,
         collectionFile,
-        // eslint-disable-next-line object-shorthand
         format: /** @type {FrontMatterFormat} */ (format),
         text,
       });

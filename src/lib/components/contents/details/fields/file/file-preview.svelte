@@ -3,6 +3,8 @@
   Implement the preview for the File and Image field types.
   @see https://decapcms.org/docs/widgets/#File
   @see https://decapcms.org/docs/widgets/#Image
+  @see https://sveltiacms.app/en/docs/fields/file
+  @see https://sveltiacms.app/en/docs/fields/image
 -->
 <script>
   import FilePreviewItem from '$lib/components/contents/details/fields/file/file-preview-item.svelte';
@@ -26,17 +28,14 @@
     currentValue,
     /* eslint-enable prefer-const */
   } = $props();
-
-  const { widget: fieldType } = $derived(fieldConfig);
-  const isImageField = $derived(fieldType === 'image');
 </script>
 
 {#if isMultiple(fieldConfig)}
   {#if Array.isArray(currentValue)}
-    {#each currentValue as value}
-      <FilePreviewItem {value} {isImageField} />
+    {#each currentValue as value, index (`${value}-${index}`)}
+      <FilePreviewItem {value} {fieldConfig} />
     {/each}
   {/if}
 {:else if typeof currentValue === 'string' && currentValue}
-  <FilePreviewItem value={currentValue} {isImageField} />
+  <FilePreviewItem value={currentValue} {fieldConfig} />
 {/if}

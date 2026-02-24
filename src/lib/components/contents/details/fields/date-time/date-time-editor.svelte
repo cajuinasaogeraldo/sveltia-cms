@@ -2,6 +2,7 @@
   @component
   Implement the editor for a DateTime field.
   @see https://decapcms.org/docs/widgets/#Datetime
+  @see https://sveltiacms.app/en/docs/fields/datetime
   @todo Replace the native `<input>` with a custom component.
 -->
 <script>
@@ -95,6 +96,7 @@
 <div role="none">
   <input
     type={dateOnly ? 'date' : timeOnly ? 'time' : 'datetime-local'}
+    max={dateOnly ? '9999-12-31' : timeOnly ? undefined : '9999-12-31T23:59'}
     bind:value={inputValue}
     {readonly}
     aria-readonly={readonly}

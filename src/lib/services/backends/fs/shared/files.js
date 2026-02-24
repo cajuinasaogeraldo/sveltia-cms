@@ -4,7 +4,7 @@
 
 import { unique } from '@sveltia/utils/array';
 import { getPathInfo, readAsText } from '@sveltia/utils/file';
-import { stripSlashes } from '@sveltia/utils/string';
+import { escapeRegExp, stripSlashes } from '@sveltia/utils/string';
 import { get } from 'svelte/store';
 
 import { allAssets } from '$lib/services/assets';
@@ -13,6 +13,7 @@ import { getAssetKind } from '$lib/services/assets/kinds';
 import { GIT_CONFIG_FILE_REGEX, gitConfigFiles } from '$lib/services/backends/git/shared/config';
 import { createFileList } from '$lib/services/backends/process';
 import { allEntries, allEntryFolders, dataLoaded, entryParseErrors } from '$lib/services/contents';
+import { ESCAPED_PLACEHOLDER_REGEX } from '$lib/services/contents/file/config';
 import { prepareEntries } from '$lib/services/contents/file/process';
 import { createPathRegEx, getBlob, getGitHash } from '$lib/services/utils/file';
 
@@ -35,6 +36,16 @@ import { createPathRegEx, getBlob, getGitHash } from '$lib/services/utils/file';
  * @property {FileSystemFileHandle} handle File system handle.
  * @property {string} path Path to the file.
  */
+
+/**
+ * Maximum file size in bytes to read content from. (10 MB).
+ */
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+/**
+ * Batch size for processing files to balance performance with memory safety.
+ * @see https://github.com/sveltia/sveltia-cms/issues/224
+ */
+const FILE_PROCESS_BATCH_SIZE = 10;
 
 /**
  * Get a file or directory handle at the given path.
@@ -105,8 +116,16 @@ export const getDirectoryHandle = (rootDirHandle, path) =>
  * @param {string} path Path.
  * @returns {RegExp} RegEx.
  */
-export const getPathRegex = (path) =>
-  createPathRegEx(path, (segment) => segment.replace(/{{.+?}}/, '.+?'));
+export const getPathRegex = (path) => {
+  // Handle empty path (root folder) - match any file
+  if (!path) {
+    return /^.+$/;
+  }
+
+  return createPathRegEx(path, (segment) =>
+    escapeRegExp(segment).replace(ESCAPED_PLACEHOLDER_REGEX, '.+?'),
+  );
+};
 
 /**
  * Retrieve all the files under the given directory recursively.
@@ -117,10 +136,11 @@ export const getPathRegex = (path) =>
  * @param {string[]} context.scanningPaths Scanning paths.
  * @param {RegExp[]} context.scanningPathsRegEx Regular expressions for scanning paths.
  * @param {FileHandleItem[]} context.fileHandles List of available file handles.
+ * @param {Map<string, RegExp>} context.pathRegexCache Cache for path regexes.
  * @param {string} [currentPath] Current directory path (for recursion).
  */
 export const scanDir = async (dirHandle, context, currentPath = '') => {
-  const { scanningPaths, scanningPathsRegEx, fileHandles } = context;
+  const { scanningPaths, scanningPathsRegEx, fileHandles, pathRegexCache } = context;
 
   for await (const [name, handle] of dirHandle.entries()) {
     // Skip hidden files and directories, except for Git configuration files
@@ -135,14 +155,19 @@ export const scanDir = async (dirHandle, context, currentPath = '') => {
       // Store only the handle and path. Metadata will be extracted later when needed, avoiding
       // memory leaks from holding multiple file references during directory scanning.
       fileHandles.push({
-        // eslint-disable-next-line object-shorthand
         handle: /** @type {FileSystemFileHandle} */ (handle),
         path,
       });
     }
 
     if (handle.kind === 'directory') {
-      const regex = getPathRegex(path);
+      // Cache regex creation to avoid recreating for the same path
+      let regex = pathRegexCache.get(path);
+
+      if (!regex) {
+        regex = getPathRegex(path);
+        pathRegexCache.set(path, regex);
+      }
 
       if (hasMatchingPath || scanningPaths.some((p) => regex.test(p))) {
         await scanDir(/** @type {FileSystemDirectoryHandle} */ (handle), context, path);
@@ -186,6 +211,7 @@ export const getAllFiles = async (rootDirHandle) => {
     scanningPaths,
     scanningPathsRegEx: scanningPaths.map(getPathRegex),
     fileHandles,
+    pathRegexCache: new Map(),
   });
 
   return fileHandles.map(({ handle, path }) => ({
@@ -214,6 +240,14 @@ export const parseTextFileInfo = async (fileInfo) => {
 
   try {
     const file = await /** @type {FileSystemFileHandle} */ (handle).getFile();
+
+    if (file.size > MAX_FILE_SIZE) {
+      // eslint-disable-next-line no-console
+      console.warn(`File ${name} is too large (${file.size} bytes), skipping content read`);
+
+      return { ...fileInfo, text: '' };
+    }
+
     const text = await readAsText(file);
 
     return { ...fileInfo, text };
@@ -260,23 +294,30 @@ export const loadFiles = async (rootDirHandle) => {
   /** @type {BaseConfigListItem[]} */
   const configFileItems = [];
 
-  // Avoid using `Promise.all` to prevent concurrent file reads that can lead to memory leaks,
-  // especially on Linux systems with a large number of files.
-  // @see https://github.com/sveltia/sveltia-cms/issues/224
-  for (const fileInfo of entryFiles) {
-    entryFileItems.push(/** @type {BaseEntryListItem} */ (await parseTextFileInfo(fileInfo)));
+  // Process files in batches to balance performance with memory safety
+  for (let i = 0; i < entryFiles.length; i += FILE_PROCESS_BATCH_SIZE) {
+    const batch = entryFiles.slice(i, i + FILE_PROCESS_BATCH_SIZE);
+    const results = await Promise.all(batch.map((fileInfo) => parseTextFileInfo(fileInfo)));
+
+    entryFileItems.push(.../** @type {BaseEntryListItem[]} */ (results));
   }
 
-  for (const fileInfo of configFiles) {
-    configFileItems.push(/** @type {BaseConfigListItem} */ (await parseTextFileInfo(fileInfo)));
+  for (let i = 0; i < configFiles.length; i += FILE_PROCESS_BATCH_SIZE) {
+    const batch = configFiles.slice(i, i + FILE_PROCESS_BATCH_SIZE);
+    const results = await Promise.all(batch.map((fileInfo) => parseTextFileInfo(fileInfo)));
+
+    configFileItems.push(.../** @type {BaseConfigListItem[]} */ (results));
   }
 
   const { entries, errors } = await prepareEntries(entryFileItems);
   /** @type {Asset[]} */
   const assets = [];
 
-  for (const fileInfo of assetFiles) {
-    assets.push(await parseAssetFileInfo(fileInfo));
+  for (let i = 0; i < assetFiles.length; i += FILE_PROCESS_BATCH_SIZE) {
+    const batch = assetFiles.slice(i, i + FILE_PROCESS_BATCH_SIZE);
+    const results = await Promise.all(batch.map((fileInfo) => parseAssetFileInfo(fileInfo)));
+
+    assets.push(...results);
   }
 
   allEntries.set(entries);
@@ -352,20 +393,19 @@ export const writeFile = async ({ rootDirHandle, fileHandle, path, data }) => {
 export const deleteEmptyParentDirs = async (rootDirHandle, pathSegments) => {
   // Start from the deepest directory
   for (let i = pathSegments.length; i > 0; i -= 1) {
-    const currentPath = pathSegments.slice(0, i).join('/');
-    const dirHandle = await getDirectoryHandle(rootDirHandle, currentPath);
-    const keys = await Array.fromAsync(dirHandle.keys());
-
-    // If directory is not empty, stop
-    if (keys.length > 0) {
-      break;
-    }
-
-    // Get parent directory and remove the empty directory
     const dirName = pathSegments[i - 1];
     const parentPath = pathSegments.slice(0, i - 1).join('/');
     const parentHandle = await getDirectoryHandle(rootDirHandle, parentPath);
+    const dirHandle = await parentHandle.getDirectoryHandle(dirName);
 
+    // Use for...of to check if directory is empty with early exit on first entry found
+    // eslint-disable-next-line no-unreachable-loop
+    for await (const _entry of dirHandle.entries()) {
+      // Directory is not empty, stop cleanup
+      return;
+    }
+
+    // Directory is empty, remove it
     await parentHandle.removeEntry(dirName);
   }
 };

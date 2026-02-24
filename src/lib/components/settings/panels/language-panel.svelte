@@ -19,7 +19,7 @@
 </script>
 
 <section>
-  <h4>{$_('prefs.language.ui_language.title')}</h4>
+  <h3>{$_('prefs.language.ui_language.title')}</h3>
   <div role="none">
     {#key $appLocale}
       <Select
@@ -29,7 +29,7 @@
           $prefs = { ...$prefs, locale: event.detail.value };
         }}
       >
-        {#each $appLocales as locale}
+        {#each $appLocales as locale (locale)}
           <Option
             label={getLocaleLabel(locale, { displayLocale: locale }) ?? locale}
             value={locale}

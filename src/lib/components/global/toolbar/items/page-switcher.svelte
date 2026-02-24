@@ -3,50 +3,63 @@
   import { _ } from 'svelte-i18n';
 
   import { goto, selectedPageName } from '$lib/services/app/navigation';
-  import { selectedAssetFolder } from '$lib/services/assets/folders';
-  import { isEditorialWorkflow } from '$lib/services/contents/workflow';
+  import { allAssetFolders, selectedAssetFolder } from '$lib/services/assets/folders';
+  import { backendName } from '$lib/services/backends';
+  import { cmsConfig } from '$lib/services/config';
   import { isSmallScreen } from '$lib/services/user/env';
 
-  const pages = $derived([
-    {
-      key: 'collections',
-      label: $_('contents'),
-      icon: 'library_books',
-      link: '/collections',
-    },
-    {
-      key: 'assets',
-      label: $_('assets'),
-      icon: 'photo_library',
-      link: $isSmallScreen ? '/assets' : `/assets/${$selectedAssetFolder?.internalPath ?? '-/all'}`,
-    },
-    ...($isEditorialWorkflow
-      ? [
-          {
-            key: 'workflow',
-            label: $_('editorial_workflow'),
-            icon: 'rebase_edit',
-            link: '/workflow',
-          },
-        ]
-      : []),
-    // {
-    //   key: 'config',
-    //   label: $_('cms_config'),
-    //   icon: 'settings',
-    //   link: '/config',
-    // },
-    ...($isSmallScreen
-      ? [
-          {
-            key: 'menu',
-            label: $_('menu'),
-            icon: 'menu',
-            link: '/menu',
-          },
-        ]
-      : []),
-  ]);
+  const pages = $derived.by(() => {
+    const _pages = [
+      {
+        key: 'collections',
+        label: $_('contents'),
+        icon: 'library_books',
+        link: '/collections',
+      },
+    ];
+
+    // Hide Assets page if there is no asset folder configured
+    // @todo Remove this condition when the Asset Library supports external storage providers
+    if ($allAssetFolders.length) {
+      _pages.push({
+        key: 'assets',
+        label: $_('assets'),
+        icon: 'photo_library',
+        link: $isSmallScreen
+          ? '/assets'
+          : `/assets/${$selectedAssetFolder?.internalPath ?? '-/all'}`,
+      });
+    }
+
+    if ($cmsConfig?.publish_mode === 'editorial_workflow') {
+      // _pages.push({
+      //   key: 'workflow',
+      //   label: $_('editorial_workflow'),
+      //   icon: 'rebase_edit',
+      //   link: '/workflow',
+      // });
+    }
+
+    if ($backendName === 'local') {
+      // _pages.push({
+      //   key: 'config',
+      //   label: $_('cms_config'),
+      //   icon: 'settings',
+      //   link: '/config',
+      // });
+    }
+
+    if ($isSmallScreen) {
+      _pages.push({
+        key: 'settings',
+        label: $_('settings'),
+        icon: 'settings',
+        link: '/settings',
+      });
+    }
+
+    return _pages;
+  });
 </script>
 
 <div role="none" class="wrapper">

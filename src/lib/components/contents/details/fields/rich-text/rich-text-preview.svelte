@@ -2,6 +2,7 @@
   @component
   Implement the preview for a Markdown/RichText field.
   @see https://decapcms.org/docs/widgets/#Markdown
+  @see https://sveltiacms.app/en/docs/fields/richtext
 -->
 <script>
   import { sanitize } from 'isomorphic-dompurify';
@@ -14,7 +15,6 @@
   import { encodeImageSrc } from '$lib/services/contents/fields/rich-text/helper';
 
   /**
-   * @import DOMPurify from 'isomorphic-dompurify';
    * @import { FieldPreviewProps } from '$lib/types/private';
    * @import { MarkdownField } from '$lib/types/public';
    */
@@ -57,7 +57,6 @@
     },
   };
 
-  /** @type {DOMPurify.Config} */
   const sanitizeOptions = {
     // Allow `blob` images
     // @see https://github.com/cure53/DOMPurify/issues/549

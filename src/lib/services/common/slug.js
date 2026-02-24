@@ -1,5 +1,6 @@
 import transliterate from '@sindresorhus/transliterate';
 import { generateUUID } from '@sveltia/utils/crypto';
+import { truncate } from '@sveltia/utils/string';
 import { get } from 'svelte/store';
 
 import { cmsConfig } from '$lib/services/config';
@@ -15,19 +16,27 @@ import { cmsConfig } from '$lib/services/config';
  * @param {object} [options] Options.
  * @param {boolean} [options.fallback] Whether to return a fallback value if the slug is empty.
  * Defaults to `true`, which returns a part of a UUID.
+ * @param {number} [options.maxLength] Maximum length of the slug.
  * @returns {string} Slug.
  * @see https://decapcms.org/docs/configuration-options/#slug-type
+ * @see https://sveltiacms.app/en/docs/collections/entries#global-slug-options
  */
-export const slugify = (string, { fallback = true } = {}) => {
+export const slugify = (
+  string,
+  { fallback = true, maxLength: maxLengthParam = undefined } = {},
+) => {
   const {
     slug: {
       encoding = 'unicode',
       clean_accents: cleanAccents = false,
       sanitize_replacement: sanitizeReplacement = '-',
+      maxlength: maxLengthOption = undefined,
       trim: trimReplacement = true,
+      lowercase = true,
     } = {},
   } = /** @type {InternalCmsConfig} */ (get(cmsConfig)) ?? {};
 
+  const maxLength = maxLengthParam ?? maxLengthOption;
   let slug = string;
 
   if (cleanAccents) {
@@ -44,8 +53,8 @@ export const slugify = (string, { fallback = true } = {}) => {
     slug = slug.replaceAll(/[\p{Z}\p{C}!"#$&'()*+,/:;<=>?@[\]^`{|}]/gu, ' ');
   }
 
-  // Make the string lowercase; replace all the spaces with replacers (hyphens by default)
-  slug = slug.toLocaleLowerCase().trim().replaceAll(/\s+/g, sanitizeReplacement);
+  // Replace all the spaces with replacers (hyphens by default)
+  slug = slug.trim().replaceAll(/\s+/g, sanitizeReplacement);
 
   // Consolidate consecutive replacement characters into a single one and trim them from ends
   if (sanitizeReplacement) {
@@ -61,7 +70,15 @@ export const slugify = (string, { fallback = true } = {}) => {
   }
 
   if (!slug && fallback) {
-    return generateUUID('short');
+    slug = generateUUID('short');
+  }
+
+  if (typeof maxLength === 'number' && slug.length > maxLength) {
+    slug = truncate(slug, maxLength, { ellipsis: '' });
+  }
+
+  if (lowercase) {
+    slug = slug.toLocaleLowerCase();
   }
 
   return slug;

@@ -5,12 +5,13 @@ import { escapeRegExp } from '@sveltia/utils/string';
 import mime from 'mime';
 import { get } from 'svelte/store';
 
-import { getAssetByPath } from '$lib/services/assets';
+import { getAssetByPath, isRelativePath } from '$lib/services/assets';
 import { getAssetFoldersByPath, globalAssetFolder } from '$lib/services/assets/folders';
 import { backend } from '$lib/services/backends';
 import { cmsConfig } from '$lib/services/config';
 import { getEntriesByAssetURL } from '$lib/services/contents/collection/entries';
-import { getWorkflowAssetURL } from '$lib/services/contents/workflow';
+import { allCloudStorageServices } from '$lib/services/integrations/media-libraries/cloud';
+import { getMergedLibraryOptions } from '$lib/services/integrations/media-libraries/cloud/cloudinary';
 import { createPathRegEx, encodeFilePath } from '$lib/services/utils/file';
 import { getMediaMetadata } from '$lib/services/utils/media';
 import { transformImage } from '$lib/services/utils/media/image/transform';
@@ -24,6 +25,7 @@ import { renderPDF } from '$lib/services/utils/media/pdf';
  * InternalCmsConfig,
  * InternalImageTransformationOptions,
  * } from '$lib/types/private';
+ * @import { MediaField } from '$lib/types/public';
  */
 
 /**
@@ -167,14 +169,23 @@ export const getAssetPublicURL = (
           ({ collectionName }) => collectionName !== undefined,
         ) ?? get(globalAssetFolder));
 
-  // Cannot determine the URL if it’s relative to an entry, unless the asset is in the same folder
+  // Try to determine an entry-relative path if the asset is in the same folder as the entry, or a
+  // sub-folder of it
   if (entryRelative) {
-    if (
-      pathOnly &&
-      !!entry &&
-      getPathInfo(asset.path).dirname === getPathInfo(Object.values(entry.locales)[0].path).dirname
-    ) {
-      return asset.name;
+    if (pathOnly && entry) {
+      const assetFolderPath = getPathInfo(asset.path).dirname;
+      const entryFolderPath = getPathInfo(Object.values(entry.locales)[0].path).dirname;
+
+      if (assetFolderPath !== undefined && entryFolderPath !== undefined) {
+        // If the asset is in the same folder as the entry, return the file name only
+        if (assetFolderPath === entryFolderPath) {
+          return asset.name;
+        }
+
+        // Return the path relative to the entry’s folder, e.g. `images/photo.jpg`, or `undefined`
+        // if the path cannot be determined
+        return asset.path.match(new RegExp(`^(?:${escapeRegExp(entryFolderPath)})/(.+)$`))?.[1];
+      }
     }
 
     return undefined;
@@ -215,6 +226,23 @@ export const getAssetPublicURL = (
 };
 
 /**
+ * Get the base URL for assets stored in Cloudinary.
+ * @param {MediaField} [fieldConfig] Field configuration.
+ * @returns {string | undefined} Base URL or undefined if not applicable.
+ */
+export const getAssetBaseURL = (fieldConfig) => {
+  if (allCloudStorageServices.cloudinary?.isEnabled?.()) {
+    const options = getMergedLibraryOptions(fieldConfig);
+
+    if (options.output_filename_only && options.config?.cloud_name) {
+      return `https://res.cloudinary.com/${options.config.cloud_name}`;
+    }
+  }
+
+  return undefined;
+};
+
+/**
  * Get the blob or public URL from the given image/file entry field value.
  * @param {object} args Arguments.
  * @param {string} args.value Saved field value. It can be an absolute path, entry-relative path, or
@@ -223,6 +251,7 @@ export const getAssetPublicURL = (
  * path. Can be `undefined` when editing a new draft.
  * @param {string} args.collectionName Collection name.
  * @param {string} [args.fileName] Collection file name. File/singleton collection only.
+ * @param {MediaField} [args.fieldConfig] Field configuration.
  * @param {boolean} [args.thumbnail] Whether to use a thumbnail of the image.
  * @returns {Promise<string | undefined>} Blob URL or public URL that can be used in the app UI.
  */
@@ -231,6 +260,7 @@ export const getMediaFieldURL = async ({
   entry,
   collectionName,
   fileName,
+  fieldConfig,
   thumbnail = false,
 }) => {
   if (!value) {
@@ -241,14 +271,13 @@ export const getMediaFieldURL = async ({
     return value;
   }
 
-  // Check if we're in workflow mode and try to get GitHub raw URL
-  const { owner, repo } = get(backend)?.repository ?? {};
+  // If the value is a relative path, try to get the asset base URL from the field config. This is a
+  // special case for Cloudinary assets.
+  if (isRelativePath(value)) {
+    const assetBaseURL = getAssetBaseURL(fieldConfig);
 
-  if (owner && repo) {
-    const workflowURL = getWorkflowAssetURL(value, { owner, repo });
-
-    if (workflowURL) {
-      return workflowURL;
+    if (assetBaseURL) {
+      return `${assetBaseURL}/${value}`;
     }
   }
 
