@@ -27,6 +27,7 @@ const UNSUPPORTED_OPTIONS = [
  * @throws {Error} If there is an error in the backend config.
  */
 export const parseBackendConfig = (cmsConfig, collectors) => {
+  // eslint-disable-next-line camelcase
   const { backend, publish_mode } = cmsConfig;
   const { errors, warnings } = collectors;
 
@@ -58,6 +59,7 @@ export const parseBackendConfig = (cmsConfig, collectors) => {
   }
 
   // Validate editorial workflow requirements
+  // eslint-disable-next-line camelcase
   if (publish_mode === 'editorial_workflow') {
     if (!Object.keys(gitBackendServices).includes(name)) {
       errors.add(

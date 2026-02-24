@@ -155,7 +155,9 @@
       </span>
     {/snippet}
     {#if $isLiveBuildRunning}
-      <span class="deploy-text">{$_('deploying', { default: 'Deploying' })}<span class="dots">...</span></span>
+      <span class="deploy-text"
+        >{$_('deploying', { default: 'Deploying' })}<span class="dots">...</span></span
+      >
     {:else}
       {$_('deploy', { default: 'Deploy' })}
     {/if}

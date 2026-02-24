@@ -70,7 +70,7 @@ export const buildCompletedNotification = writable(null);
 let pollIntervalId = null;
 /** @type {boolean} */
 let isPageVisible = true;
-/** @type {NodeJS.Timeout | null} */
+/** @type {any} */
 let pollTimeoutId = null;
 
 /**
@@ -79,44 +79,10 @@ let pollTimeoutId = null;
  */
 const getPollInterval = () => {
   const running = get(isLiveBuildRunning);
+
   return running ? POLL_INTERVAL_ACTIVE : POLL_INTERVAL_IDLE;
 };
 
-/**
- * Watch for build state changes and reschedule polling if needed.
- */
-isLiveBuildRunning.subscribe((running) => {
-  if (get(isPollingLiveBuilds)) {
-    // Reschedule with new interval
-    scheduleNextPoll();
-  }
-});
-
-/**
- * Schedule the next poll with dynamic interval.
- */
-const scheduleNextPoll = () => {
-  // Clear any existing timeout
-  if (pollTimeoutId) {
-    clearTimeout(pollTimeoutId);
-  }
-
-  // Only schedule if we should be polling
-  if (!get(isPollingLiveBuilds)) {
-    return;
-  }
-
-  const interval = getPollInterval();
-
-  pollTimeoutId = window.setTimeout(async () => {
-    await pollLiveBuilds();
-
-    // Schedule next poll with (potentially new) interval
-    if (get(isPollingLiveBuilds)) {
-      scheduleNextPoll();
-    }
-  }, interval);
-};
 /**
  * Get the storage key for live builds.
  * @returns {string} Storage key.
@@ -235,7 +201,6 @@ const updateBuildState = (runs) => {
   // Get previous state to detect build completion
   const prevState = get(liveBuildState);
   const previousRunningBuildId = prevState.currentBuild?.id ?? null;
-
   // Find currently running build (queued or in_progress)
   const currentBuild = runs.find((run) => run.status === 'queued' || run.status === 'in_progress');
 
@@ -277,6 +242,42 @@ const pollLiveBuilds = async () => {
 
   updateBuildState(runs);
 };
+
+/**
+ * Schedule the next poll with dynamic interval.
+ */
+const scheduleNextPoll = () => {
+  // Clear any existing timeout
+  if (pollTimeoutId) {
+    clearTimeout(pollTimeoutId);
+  }
+
+  // Only schedule if we should be polling
+  if (!get(isPollingLiveBuilds)) {
+    return;
+  }
+
+  const interval = getPollInterval();
+
+  pollTimeoutId = window.setTimeout(async () => {
+    await pollLiveBuilds();
+
+    // Schedule next poll with (potentially new) interval
+    if (get(isPollingLiveBuilds)) {
+      scheduleNextPoll();
+    }
+  }, interval);
+};
+
+/**
+ * Watch for build state changes and reschedule polling if needed.
+ */
+isLiveBuildRunning.subscribe(() => {
+  if (get(isPollingLiveBuilds)) {
+    // Reschedule with new interval
+    scheduleNextPoll();
+  }
+});
 
 /**
  * Handle page visibility change.

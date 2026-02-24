@@ -1362,6 +1362,8 @@
  * @property {boolean} [squash_merges] Whether to use squash marge for Editorial Workflow. Default:
  * `false`. Note that Editorial Workflow is not yet supported in Sveltia CMS.
  * @property {string} [preview_context] Deploy preview link context.
+ * @property {string} [preview_url] Deploy preview URL template with placeholders like `{{slug}}`,
+ * `{{pr_number}}`, etc.
  * @property {boolean} [open_authoring] Whether to use Open Authoring. Default: `false`. Note that
  * Open Authoring is not yet supported in Sveltia CMS.
  * @property {'repo' | 'public_repo'} [auth_scope] Authentication scope for Open Authoring.

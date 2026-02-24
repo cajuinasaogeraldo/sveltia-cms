@@ -5,7 +5,9 @@
   import { buildCompletedNotification } from '$lib/services/builds/live-status';
 
   let showToast = $state(false);
-  let build = $state(/** @type {import('$lib/services/builds/live-status').LiveBuild | null} */ (null));
+  let build = $state(
+    /** @type {import('$lib/services/builds/live-status').LiveBuild | null} */ (null),
+  );
 
   // Subscribe to build completion notifications
   $effect(() => {
