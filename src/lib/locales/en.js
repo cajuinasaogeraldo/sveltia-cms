@@ -781,6 +781,20 @@ export const strings = {
   building_preview: 'Building...',
   view_preview: 'View Preview',
   preview_error: 'Preview Failed',
+  // Batch Mode
+  batch_mode: 'Batch Mode',
+  batch: 'Batch',
+  batch_changes: 'Batch Changes',
+  inactive: 'Inactive',
+  confirm_publish_batch: 'Publish batch with {count} changes?',
+  confirm_publish_batch_message:
+    'This batch contains {count} changes. All changes will be published to the main branch and the PR will be merged.',
+  confirm_delete_batch: 'Delete this batch with {count} changes?',
+  confirm_delete_batch_message:
+    'This batch contains {count} changes. The PR will be closed without merging and the branch will be deleted.',
+  publish_batch: 'Publish Batch',
+  batch_ready_alert: 'The last batch changes are already ready. Open a new batch?',
+  batch_building_alert: 'Preview is currently building. Open a new batch?',
 
   // Settings
   categories: 'Categories',

@@ -22,6 +22,7 @@ import {
   updateUnpublishedEntry,
 } from '$lib/services/contents/workflow';
 import { commitToBranch, persistUnpublishedEntry } from '$lib/services/contents/workflow/actions';
+import { batchModeEnabled, persistBatchEntry } from '$lib/services/contents/workflow/batch';
 import { clearPreviewState } from '$lib/services/contents/workflow/preview';
 
 /**
@@ -109,6 +110,35 @@ export const saveEntry = async ({ skipCI = undefined } = {}) => {
       return savingEntry;
     } catch (/** @type {any} */ ex) {
       updateUnpublishedEntry(collectionName, workflowEntry.slug, { isPersisting: false });
+      // eslint-disable-next-line no-console
+      console.error(ex.cause ?? ex);
+
+      throw new Error('saving_failed', { cause: ex.cause ?? ex });
+    }
+  }
+
+  // Check if batch mode is enabled
+  const isBatch = get(batchModeEnabled);
+
+  if (isBatch) {
+    // Batch mode: save in the batch instead of creating individual branch
+    try {
+      const title = getEntrySummary(collection, savingEntry) ?? defaultLocaleSlug;
+      const { content: data = {} } = savingEntry.locales[Object.keys(savingEntry.locales)[0]] ?? {};
+
+      await persistBatchEntry({
+        collection: collectionName,
+        slug: defaultLocaleSlug,
+        title,
+        data,
+        changes,
+      });
+
+      updateStores({ skipCI, isWorkflow: true });
+      deleteBackup(collectionName, isNew ? '' : defaultLocaleSlug);
+
+      return savingEntry;
+    } catch (/** @type {any} */ ex) {
       // eslint-disable-next-line no-console
       console.error(ex.cause ?? ex);
 

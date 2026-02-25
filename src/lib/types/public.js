@@ -1366,6 +1366,9 @@
  * `{{pr_number}}`, etc.
  * @property {boolean} [open_authoring] Whether to use Open Authoring. Default: `false`. Note that
  * Open Authoring is not yet supported in Sveltia CMS.
+ * @property {string} [batch_branch] Branch name for batch mode. Default: `cms/workflow`. Used
+ * when batch mode is enabled in editorial workflow to group multiple changes into a
+ * single branch/PR.
  * @property {'repo' | 'public_repo'} [auth_scope] Authentication scope for Open Authoring.
  * @see https://decapcms.org/docs/github-backend/
  * @see https://decapcms.org/docs/editorial-workflows/

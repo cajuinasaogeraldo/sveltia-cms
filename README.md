@@ -2016,6 +2016,60 @@ Planning to build a website with Sveltia CMS? Looking for professional support? 
 
 See [Contributing to Sveltia CMS](https://github.com/sveltia/sveltia-cms/blob/main/CONTRIBUTING.md). Bug reports are highly encouraged.
 
+## Batch Mode (Editorial Workflow)
+
+The **Batch Mode** feature allows you to group multiple changes into a single branch/PR when using the editorial workflow. This is useful when you need to make several related changes and want to review/publish them all at once, rather than creating separate branches and PRs for each entry.
+
+### Activating Batch Mode
+
+1. Navigate to the **Editorial Workflow** page
+2. Click the **Batch Mode** toggle in the header
+3. All new changes will be added to the current batch
+
+### Configuration
+
+Optionally, you can customize the branch used by batch mode in your `config.yml`:
+
+```yaml
+backend:
+  name: github
+  repo: owner/repo
+  branch: main
+  # Branch for batch mode (optional)
+  batch_branch: cms/workflow # default: cms/workflow
+```
+
+### How It Works
+
+- **Batch Mode ON**: New changes are added to the configured batch branch (e.g., `cms/workflow`)
+- **Batch Mode OFF**: New changes create individual branches (default behavior)
+- Existing batches remain visible even when the mode is disabled
+- You can switch between batches using the selector in the header (when multiple batches exist)
+
+### Typical Workflow
+
+1. **Enable Batch Mode** and make several changes
+2. Drag the **Batch Card** to the "Review" column when done
+3. If you need to make a hotfix urgently:
+   - Disable Batch Mode
+   - Create and publish the hotfix normally
+   - Re-enable Batch Mode (your batch is still there)
+4. When ready, drag the batch to the "Ready" column and click **Publish Batch**
+
+### Batch States
+
+| State      | Description                        |
+| ---------- | ---------------------------------- |
+| **Draft**  | You are editing and adding changes |
+| **Review** | Changes are under review           |
+| **Ready**  | Changes are ready to be published  |
+
+### Multiple Batches
+
+If you have more than one batch in Draft or Review state, a selector will appear in the header allowing you to switch between them.
+
+**Note**: Batches in "Ready" state or with preview building cannot receive new changes — they must be published or have their preview completed first.
+
 ## Roadmap
 
 As mentioned in the [Project Status](#project-status) section, our goal is to solve most of the [Netlify/Decap CMS issues](https://github.com/decaporg/decap-cms/issues) over the course of this project. We also have lots of ideas to make Sveltia CMS a great product.

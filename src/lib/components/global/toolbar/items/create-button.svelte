@@ -3,8 +3,9 @@
   import { sleep } from '@sveltia/utils/misc';
   import { _ } from 'svelte-i18n';
 
-  import { goto } from '$lib/services/app/navigation';
+  import { goto, selectedPageName } from '$lib/services/app/navigation';
   import { showUploadAssetsDialog } from '$lib/services/assets/view';
+  import { batchModeEnabled } from '$lib/services/contents/workflow/batch';
   import { getValidCollections } from '$lib/services/contents/collection';
   import { getEntriesByCollection } from '$lib/services/contents/collection/entries';
 
@@ -15,12 +16,16 @@
   const entryCollections = $derived(
     /** @type {EntryCollection[]} */ (getValidCollections({ visible: true, type: 'entry' })),
   );
+
+  /** Disable the create button on workflow page when batch mode is active. */
+  const disabled = $derived($selectedPageName === 'workflow' && $batchModeEnabled);
 </script>
 
 <MenuButton
   variant="ghost"
   iconic
   popupPosition="bottom-right"
+  {disabled}
   aria-label={$_('create_entry_or_assets')}
 >
   {#snippet endIcon()}

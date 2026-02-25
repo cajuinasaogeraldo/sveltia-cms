@@ -1183,4 +1183,34 @@
  * @property {string} [author] Author login.
  */
 
+/**
+ * Entry within a batch.
+ * @typedef {object} BatchEntry
+ * @property {string} collection Collection name.
+ * @property {string} slug Entry slug.
+ * @property {string} title Entry title.
+ * @property {Record<string, any>} data Entry data.
+ */
+
+/**
+ * Batch of changes for editorial workflow.
+ * @typedef {object} Batch
+ * @property {string} id Unique batch ID ('batch-{timestamp}').
+ * @property {string} branch Name of the batch branch.
+ * @property {number} prNumber Pull request number.
+ * @property {Map<string, BatchEntry>} entries Map of entries in the batch (key: collection.slug).
+ * @property {WorkflowStatus} status Current workflow status (draft/pending_review/pending_publish).
+ * @property {Date} createdAt Creation timestamp.
+ * @property {Date} [updatedAt] Last update timestamp.
+ * @property {PreviewStatus} previewStatus Current preview build status.
+ * @property {string | null} previewUrl Preview URL when available.
+ * @property {boolean} isActive Whether this is the currently active batch.
+ * @property {string | undefined} headSha SHA of the most recent commit.
+ * @property {boolean} [isPersisting] Whether the batch is being saved.
+ * @property {boolean} [isUpdatingStatus] Whether the status is being updated.
+ * @property {boolean} [isPublishing] Whether the batch is being published.
+ * @property {boolean} [isDeleting] Whether the batch is being deleted.
+ * @property {boolean} [isBuildingPreview] Whether preview is being built.
+ */
+
 export {};

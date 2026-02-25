@@ -4,6 +4,7 @@
   import { _ } from 'svelte-i18n';
 
   import PageContainer from '$lib/components/common/page-container.svelte';
+  import BatchCard from '$lib/components/workflow/batch-card.svelte';
   import { goto } from '$lib/services/app/navigation';
   import {
     draftEntries,
@@ -18,6 +19,11 @@
     publishEntry,
     updateEntryStatus,
   } from '$lib/services/contents/workflow/actions';
+  import {
+    activeBatch,
+    batchModeEnabled,
+    loadExistingBatches,
+  } from '$lib/services/contents/workflow/batch';
   import {
     buildPreview,
     isPreviewEnabled,
@@ -39,6 +45,7 @@
 
   onMount(() => {
     loadUnpublishedEntries();
+    loadExistingBatches();
   });
 
   // Restore preview states when entries load
@@ -275,6 +282,7 @@
         <span>{$_('loading')}</span>
       </div>
     {:else}
+      <!-- Entry Cards -->
       <div role="none" class="columns">
         <Group class="column" aria-labelledby="draft-column-title">
           <header role="none">
@@ -289,6 +297,25 @@
             ondragleave={handleDragLeave}
             ondrop={() => handleDrop(WORKFLOW_STATUS.DRAFT)}
           >
+            <!-- Batch Card (if active and in Draft status) -->
+            {#if $activeBatch && $activeBatch.status === WORKFLOW_STATUS.DRAFT}
+              {@const isBatchBusy =
+                $activeBatch.isPersisting ??
+                $activeBatch.isUpdatingStatus ??
+                $activeBatch.isDeleting ??
+                $activeBatch.isBuildingPreview ??
+                false}
+              <BatchCard
+                batch={$activeBatch}
+                onStatusChange={(newStatus) => {
+                  // Batch moved to different column - will be rendered there
+                }}
+                onDelete={() => {
+                  // Batch deleted
+                }}
+              />
+            {/if}
+
             {#each $draftEntries as entry (entry.slug)}
               <article
                 class="entry-card"
@@ -342,6 +369,19 @@
             ondragleave={handleDragLeave}
             ondrop={() => handleDrop(WORKFLOW_STATUS.PENDING_REVIEW)}
           >
+            <!-- Batch Card (if active and in Review status) -->
+            {#if $activeBatch && $activeBatch.status === WORKFLOW_STATUS.PENDING_REVIEW}
+              <BatchCard
+                batch={$activeBatch}
+                onStatusChange={(newStatus) => {
+                  // Batch moved to different column
+                }}
+                onDelete={() => {
+                  // Batch deleted
+                }}
+              />
+            {/if}
+
             {#each $pendingReviewEntries as entry (entry.slug)}
               {@const isBusy =
                 entry.isUpdatingStatus || entry.isDeleting || entry.isBuildingPreview}
@@ -426,6 +466,19 @@
             ondragleave={handleDragLeave}
             ondrop={() => handleDrop(WORKFLOW_STATUS.PENDING_PUBLISH)}
           >
+            <!-- Batch Card (if active and in Ready status) -->
+            {#if $activeBatch && $activeBatch.status === WORKFLOW_STATUS.PENDING_PUBLISH}
+              <BatchCard
+                batch={$activeBatch}
+                onStatusChange={(newStatus) => {
+                  // Batch moved to different column
+                }}
+                onDelete={() => {
+                  // Batch deleted
+                }}
+              />
+            {/if}
+
             {#each $pendingPublishEntries as entry (entry.slug)}
               {@const isBusy = entry.isUpdatingStatus || entry.isPublishing || entry.isDeleting}
               <article

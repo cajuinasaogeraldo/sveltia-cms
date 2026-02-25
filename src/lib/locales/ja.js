@@ -778,6 +778,20 @@ export const strings = {
   status_change_failed: 'ステータスの変更に失敗しました',
   drag_to_change_status: 'ドラッグしてステータス変更',
   drop_entry_here: 'ここにドロップ',
+  // Batch Mode
+  batch_mode: 'バッチモード',
+  batch: 'バッチ',
+  batch_changes: 'バッチ変更',
+  inactive: '非アクティブ',
+  confirm_publish_batch: '{count}件の変更を含むバッチを公開しますか？',
+  confirm_publish_batch_message:
+    'このバッチには{count}件の変更が含まれています。すべての変更はmainブランチに公開され、PRはマージされます。',
+  confirm_delete_batch: '{count}件の変更を含むこのバッチを削除しますか？',
+  confirm_delete_batch_message:
+    'このバッチには{count}件の変更が含まれています。PRはマージされずにクローズされ、ブランチは削除されます。',
+  publish_batch: 'バッチを公開',
+  batch_ready_alert: '最後のバッチ変更は既に準備完了です。新しいバッチを開きますか？',
+  batch_building_alert: 'プレビューを構築中です。新しいバッチを開きますか？',
 
   // Settings
   categories: 'カテゴリ',

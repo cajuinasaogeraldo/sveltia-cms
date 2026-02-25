@@ -25,11 +25,17 @@ const DEFAULT_COMMIT_MESSAGES = {
   workflowPublish: 'Publish {{collection}} "{{slug}}"',
   workflowPrTitle: 'Editorial Workflow: {{title}}',
   workflowPrBody: 'Creating entry: {{collection}}/{{slug}}',
+  // Batch Mode messages
+  batchPrTitle: 'Editorial Workflow: Batch Changes',
+  batchPrBody: 'Multiple changes in batch',
+  batchPublish: 'Publish batch changes',
 };
 
 /**
  * Create a workflow message (for PR titles, bodies, and publish commits).
- * @param {'workflowPublish' | 'workflowPrTitle' | 'workflowPrBody'} messageType Message type.
+ * @param
+ * {'workflowPublish' | 'workflowPrTitle' | 'workflowPrBody' | 'batchPrTitle'
+ * | 'batchPrBody' | 'batchPublish'} messageType Message type.
  * @param {object} context Message context.
  * @param {string} context.collection Collection name.
  * @param {string} context.slug Entry slug.

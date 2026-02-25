@@ -3,6 +3,8 @@
   import { _ } from 'svelte-i18n';
 
   import AccountButton from '$lib/components/global/toolbar/items/account-button.svelte';
+  import BatchModeToggle from '$lib/components/global/toolbar/items/batch-mode-toggle.svelte';
+  import BatchSelector from '$lib/components/global/toolbar/items/batch-selector.svelte';
   import CreateButton from '$lib/components/global/toolbar/items/create-button.svelte';
   import HelpButton from '$lib/components/global/toolbar/items/help-button.svelte';
   import LiveBuildIndicator from '$lib/components/global/toolbar/items/live-build-indicator.svelte';
@@ -23,6 +25,8 @@
     </div>
     <QuickSearchBar />
     <div role="none" class="buttons">
+      <BatchModeToggle />
+      <BatchSelector />
       <PublishButton />
       <CreateButton />
       <LiveBuildIndicator />

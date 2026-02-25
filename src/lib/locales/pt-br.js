@@ -783,6 +783,20 @@ export const strings = {
   building_preview: 'Construindo...',
   view_preview: 'Ver Visualização',
   preview_error: 'Falha na Visualização',
+  // Batch Mode
+  batch_mode: 'Modo em Lote',
+  batch: 'Lote',
+  batch_changes: 'Mudanças em Lote',
+  inactive: 'Inativo',
+  confirm_publish_batch: 'Publicar lote com {count} mudanças?',
+  confirm_publish_batch_message:
+    'Este lote contém {count} mudanças. Todas as mudanças serão publicadas para a branch main e o PR será mergeado.',
+  confirm_delete_batch: 'Excluir este lote com {count} mudanças?',
+  confirm_delete_batch_message:
+    'Este lote contém {count} mudanças. O PR será fechado sem merge e a branch será excluída.',
+  publish_batch: 'Publicar Lote',
+  batch_ready_alert: 'As últimas mudanças em lote já estão prontas. Abrir um novo lote?',
+  batch_building_alert: 'A visualização está sendo construída. Abrir um novo lote?',
 
   // Settings
   categories: 'Categorias',

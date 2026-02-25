@@ -179,7 +179,7 @@ export const buildPreviewUrl = (entry) => {
  * @returns {Promise<void>}
  * @see https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event
  */
-const triggerRepositoryDispatch = async (entry) => {
+export const triggerRepositoryDispatch = async (entry) => {
   const { owner, repo } = repository;
 
   await fetchAPI(`/repos/${owner}/${repo}/dispatches`, {
@@ -205,7 +205,7 @@ const triggerRepositoryDispatch = async (entry) => {
  * @returns {Promise<{ id: number, status: string, conclusion: string | null } | undefined>}
  * Workflow run info or undefined if not found.
  */
-const findWorkflowRun = async (dispatchTime) => {
+export const findWorkflowRun = async (dispatchTime) => {
   const { owner, repo } = repository;
 
   try {
