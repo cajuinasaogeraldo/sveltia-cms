@@ -4,9 +4,12 @@ on:
   release:
     types:
       - published
+  push:
+    tags:
+      - 'v*'
 
 permissions:
-  id-token: write
+  id-token: write # Required for OIDC
   contents: read
 
 jobs:
@@ -32,7 +35,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Publish
+      - name: Build package
+        run: pnpm build
+
+      - name: Publish to npm
         run: pnpm publish --no-git-checks --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
