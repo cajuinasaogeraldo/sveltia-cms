@@ -107,7 +107,6 @@
   },
   "publishConfig": {
     "directory": "package",
-    "access": "public",
-    "provenance": false
+    "access": "public"
   }
 }

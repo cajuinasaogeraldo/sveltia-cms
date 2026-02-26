@@ -28,9 +28,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: '25'
+          node-version: '25.x'
           cache: pnpm
           registry-url: https://registry.npmjs.org/
+
+      - name: Update npm to latest
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
@@ -39,4 +42,5 @@ jobs:
         run: pnpm build
 
       - name: Publish to npm
-        run: pnpm publish --no-git-checks --access public
+        run: npm publish --access public
+        working-directory: ./package
