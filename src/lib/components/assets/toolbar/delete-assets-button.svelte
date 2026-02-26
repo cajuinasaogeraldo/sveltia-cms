@@ -47,6 +47,7 @@
   bind:open={showDialog}
   title={assets.length === 1 ? $_('delete_asset') : $_('delete_assets')}
   okLabel={$_('delete')}
+  cancelLabel={$_('cancel')}
   onOk={() => {
     deleteAssets(assets);
     onDelete?.();

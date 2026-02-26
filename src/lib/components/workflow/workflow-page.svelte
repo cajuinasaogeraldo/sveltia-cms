@@ -26,6 +26,7 @@
   } from '$lib/services/contents/workflow/batch';
   import {
     buildPreview,
+    isAnyPreviewBuilding,
     isPreviewEnabled,
     isPreviewOutdated,
     restorePreviewState,
@@ -36,12 +37,15 @@
    * @import { UnpublishedEntry, WorkflowStatus } from '$lib/types/private';
    */
 
-  /** @type {UnpublishedEntry | null} */
+  /** @type {UnpublishedEntry | { isBatch: true } | null} */
   let draggedEntry = $state(null);
   /** @type {WorkflowStatus | null} */
   let dragOverStatus = $state(null);
   let showErrorToast = $state(false);
   let errorMessage = $state('');
+
+  /** Reactive state for global preview building status (disables all build buttons). */
+  let globalPreviewBuilding = $derived(isAnyPreviewBuilding());
 
   onMount(() => {
     loadUnpublishedEntries();
@@ -246,7 +250,30 @@
    * @param {WorkflowStatus} targetStatus Target status.
    */
   const handleDrop = async (targetStatus) => {
-    if (!draggedEntry || draggedEntry.status === targetStatus) {
+    if (!draggedEntry) {
+      dragOverStatus = null;
+      return;
+    }
+
+    // Handle batch card drop
+    if (draggedEntry.isBatch) {
+      draggedEntry = null;
+      dragOverStatus = null;
+
+      try {
+        const { updateBatchStatus } = await import('$lib/services/contents/workflow/batch');
+        await updateBatchStatus(targetStatus);
+      } catch (/** @type {any} */ error) {
+        errorMessage =
+          error.message || $_('status_change_failed', { default: 'Failed to change status' });
+        showErrorToast = true;
+      }
+
+      return;
+    }
+
+    // Handle regular entry drop
+    if (draggedEntry.status === targetStatus) {
       draggedEntry = null;
       dragOverStatus = null;
       return;
@@ -270,6 +297,21 @@
    * Handle drag end.
    */
   const handleDragEnd = () => {
+    draggedEntry = null;
+    dragOverStatus = null;
+  };
+
+  /**
+   * Handle batch card drag start.
+   */
+  const handleBatchDragStart = () => {
+    draggedEntry = { isBatch: true };
+  };
+
+  /**
+   * Handle batch card drag end.
+   */
+  const handleBatchDragEnd = () => {
     draggedEntry = null;
     dragOverStatus = null;
   };
@@ -307,7 +349,9 @@
                 false}
               <BatchCard
                 batch={$activeBatch}
-                onStatusChange={(newStatus) => {
+                onDragStart={handleBatchDragStart}
+                onDragEnd={handleBatchDragEnd}
+                onStatusChange={(/** @type {WorkflowStatus} */ newStatus) => {
                   // Batch moved to different column - will be rendered there
                 }}
                 onDelete={() => {
@@ -320,7 +364,9 @@
               <article
                 class="entry-card"
                 class:busy={entry.isUpdatingStatus || entry.isDeleting}
-                class:dragging={draggedEntry?.slug === entry.slug}
+                class:dragging={draggedEntry &&
+                  'slug' in draggedEntry &&
+                  draggedEntry.slug === entry.slug}
                 draggable={!entry.isUpdatingStatus && !entry.isDeleting}
                 ondragstart={() => handleDragStart(entry)}
                 ondragend={handleDragEnd}
@@ -373,7 +419,9 @@
             {#if $activeBatch && $activeBatch.status === WORKFLOW_STATUS.PENDING_REVIEW}
               <BatchCard
                 batch={$activeBatch}
-                onStatusChange={(newStatus) => {
+                onDragStart={handleBatchDragStart}
+                onDragEnd={handleBatchDragEnd}
+                onStatusChange={(/** @type {WorkflowStatus} */ newStatus) => {
                   // Batch moved to different column
                 }}
                 onDelete={() => {
@@ -388,7 +436,9 @@
               <article
                 class="entry-card"
                 class:busy={isBusy}
-                class:dragging={draggedEntry?.slug === entry.slug}
+                class:dragging={draggedEntry &&
+                  'slug' in draggedEntry &&
+                  draggedEntry.slug === entry.slug}
                 draggable={!isBusy}
                 ondragstart={() => handleDragStart(entry)}
                 ondragend={handleDragEnd}
@@ -427,7 +477,7 @@
                         variant="tertiary"
                         size="small"
                         label={getPreviewButtonLabel(entry)}
-                        disabled={entry.isBuildingPreview}
+                        disabled={entry.isBuildingPreview || globalPreviewBuilding}
                         onclick={() => handleBuildPreview(entry)}
                       >
                         <Icon slot="start-icon" name="visibility" />
@@ -470,7 +520,9 @@
             {#if $activeBatch && $activeBatch.status === WORKFLOW_STATUS.PENDING_PUBLISH}
               <BatchCard
                 batch={$activeBatch}
-                onStatusChange={(newStatus) => {
+                onDragStart={handleBatchDragStart}
+                onDragEnd={handleBatchDragEnd}
+                onStatusChange={(/** @type {WorkflowStatus} */ newStatus) => {
                   // Batch moved to different column
                 }}
                 onDelete={() => {
@@ -484,7 +536,9 @@
               <article
                 class="entry-card"
                 class:busy={isBusy}
-                class:dragging={draggedEntry?.slug === entry.slug}
+                class:dragging={draggedEntry &&
+                  'slug' in draggedEntry &&
+                  draggedEntry.slug === entry.slug}
                 draggable={!isBusy}
                 ondragstart={() => handleDragStart(entry)}
                 ondragend={handleDragEnd}

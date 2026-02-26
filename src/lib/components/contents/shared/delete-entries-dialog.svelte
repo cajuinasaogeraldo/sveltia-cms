@@ -38,6 +38,7 @@
   bind:open
   title={$selectedEntries.length === 1 ? $_('delete_entry') : $_('delete_entries')}
   okLabel={$_('delete')}
+  cancelLabel={$_('cancel')}
   onOk={() => {
     deleteEntries($selectedEntries, associatedAssets);
   }}

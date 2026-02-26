@@ -45,6 +45,66 @@ const extractLocaleFromPath = (filePath, i18nConfig) => {
 };
 
 /**
+ * Check if a file path belongs to a specific entry slug.
+ * Handles various path formats including i18n structures and nested paths.
+ * @param {string} filePath File path.
+ * @param {string} slug Entry slug.
+ * @param {import('$lib/types/private').InternalI18nOptions} i18nConfig I18n configuration.
+ * @returns {boolean} True if the file belongs to the entry.
+ */
+const fileBelongsToEntry = (filePath, slug, i18nConfig) => {
+  const { structure } = i18nConfig;
+
+  // Extract the filename from path
+  const parts = filePath.split('/');
+  const fileName = parts[parts.length - 1] ?? '';
+
+  // Handle nested slugs (e.g., "2024/my-post" or "blog/2024/my-post")
+  // We need to check if the file path contains the slug parts
+  const slugParts = slug.split('/');
+
+  if (structure === 'multiple_files') {
+    // Format: posts/my-slug.en.md, posts/my-slug.md, or posts/2024/my-slug.md
+    // For nested slugs, the last part of the slug should match the filename
+    const lastSlugPart = slugParts[slugParts.length - 1];
+
+    // Match: my-slug.md, my-slug.en.md, my-slug.en-US.md
+    const slugPattern = new RegExp(
+      `^${lastSlugPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\.[a-z]{2}(-[A-Z]{2})?)?\\.(md|json|yaml|yml)$`,
+    );
+    return slugPattern.test(fileName);
+  }
+
+  if (structure === 'multiple_folders') {
+    // Format: posts/en/my-slug.md, posts/en/2024/my-slug.md
+    // For nested slugs, the filename should match the last part of the slug
+    const lastSlugPart = slugParts[slugParts.length - 1];
+    const baseFileName = fileName.replace(/\.(md|json|yaml|yml)$/, '');
+
+    // The filename should match the last part of the slug
+    if (baseFileName !== lastSlugPart) {
+      return false;
+    }
+
+    // Additionally, verify the path contains all slug parts in order
+    const pathWithoutExt = filePath.replace(/\.(md|json|yaml|yml)$/, '');
+    const slugPattern = slugParts.join('/');
+
+    // Check if the path contains the slug pattern (e.g., "posts/2024/my-post")
+    return pathWithoutExt.includes(slugPattern);
+  }
+
+  // For single_file or default: check if filename starts with slug
+  // For nested slugs like "2024/my-post", check if path contains slug
+  if (slugParts.length > 1) {
+    const slugPattern = slugParts.join('/');
+    return filePath.includes(slugPattern);
+  }
+
+  return fileName.startsWith(`${slug}.`);
+};
+
+/**
  * Load an entry from a workflow PR branch.
  * @param {string} collection Collection name.
  * @param {string} slug Entry slug.
@@ -53,7 +113,20 @@ const extractLocaleFromPath = (filePath, i18nConfig) => {
 export const loadEntryFromWorkflowBranch = async (collection, slug) => {
   const unpublishedEntry = getUnpublishedEntry(collection, slug);
 
-  if (!unpublishedEntry || !unpublishedEntry.prNumber || !unpublishedEntry.branch) {
+  if (!unpublishedEntry) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[loadEntryFromWorkflowBranch] No unpublished entry found for "${collection}/${slug}"`,
+    );
+    return null;
+  }
+
+  if (!unpublishedEntry.prNumber || !unpublishedEntry.branch) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[loadEntryFromWorkflowBranch] Entry "${collection}/${slug}" missing prNumber or branch`,
+      unpublishedEntry,
+    );
     return null;
   }
 
@@ -71,19 +144,52 @@ export const loadEntryFromWorkflowBranch = async (collection, slug) => {
     const collectionFolder =
       collectionConfig._type === 'entry' ? collectionConfig._file.basePath : '';
 
-    const entryFiles = prFiles.filter(
+    const i18nConfig = collectionConfig._i18n;
+
+    let entryFiles = prFiles.filter(
       (file) =>
         file.status !== 'removed' &&
         collectionFolder &&
-        file.path.startsWith(`${collectionFolder}/`),
+        file.path.startsWith(`${collectionFolder}/`) &&
+        fileBelongsToEntry(file.path, slug, i18nConfig),
     );
 
+    // Fallback: if no files found with strict filter, try a more relaxed approach
+    // This handles cases where the file structure doesn't exactly match expectations
     if (entryFiles.length === 0) {
-      // No files found - this might be a new entry that hasn't been created yet
+      // Try to find files that contain the slug anywhere in the path
+      entryFiles = prFiles.filter((file) => {
+        if (file.status === 'removed') return false;
+        if (!collectionFolder) return false;
+
+        // Must be in the collection folder
+        if (!file.path.startsWith(`${collectionFolder}/`)) return false;
+
+        // Check if the file path contains the slug (handling nested paths)
+        // For slug "2024/my-post", we look for files containing "my-post"
+        const slugParts = slug.split('/');
+        const lastSlugPart = slugParts[slugParts.length - 1];
+
+        // Check if filename contains the last part of the slug
+        const fileName = file.path.split('/').pop() ?? '';
+        const fileNameWithoutExt = fileName.replace(/\.(md|json|yaml|yml)$/i, '');
+
+        return (
+          fileNameWithoutExt === lastSlugPart || fileNameWithoutExt.startsWith(`${lastSlugPart}.`)
+        );
+      });
+    }
+
+    if (entryFiles.length === 0) {
+      // Debug log to help troubleshoot
+      // eslint-disable-next-line no-console
+      console.warn(
+        `No files found for entry "${collection}/${slug}". PR files:`,
+        prFiles.map((f) => f.path),
+      );
       return null;
     }
 
-    const i18nConfig = collectionConfig._i18n;
     const { defaultLocale } = i18nConfig;
 
     // Load content from each file in parallel

@@ -70,21 +70,27 @@ export const getUnpublishedEntry = (collection, slug) =>
  * Derived store: entries with status 'draft'.
  */
 export const draftEntries = derived(unpublishedEntries, ($entries) =>
-  [...$entries.values()].filter((entry) => entry.status === WORKFLOW_STATUS.DRAFT),
+  [...$entries.values()].filter(
+    (entry) => entry.status === WORKFLOW_STATUS.DRAFT && !entry.isTemporary,
+  ),
 );
 
 /**
  * Derived store: entries with status 'pending_review'.
  */
 export const pendingReviewEntries = derived(unpublishedEntries, ($entries) =>
-  [...$entries.values()].filter((entry) => entry.status === WORKFLOW_STATUS.PENDING_REVIEW),
+  [...$entries.values()].filter(
+    (entry) => entry.status === WORKFLOW_STATUS.PENDING_REVIEW && !entry.isTemporary,
+  ),
 );
 
 /**
  * Derived store: entries with status 'pending_publish'.
  */
 export const pendingPublishEntries = derived(unpublishedEntries, ($entries) =>
-  [...$entries.values()].filter((entry) => entry.status === WORKFLOW_STATUS.PENDING_PUBLISH),
+  [...$entries.values()].filter(
+    (entry) => entry.status === WORKFLOW_STATUS.PENDING_PUBLISH && !entry.isTemporary,
+  ),
 );
 
 /**
@@ -97,6 +103,7 @@ export const setWorkflowLoading = (loading) => {
 
 /**
  * Set all unpublished entries.
+ * Preserves temporary entries that may have been added (e.g., from batch mode).
  * @param {UnpublishedEntry[]} entries Entries to set.
  */
 export const setUnpublishedEntries = (entries) => {
@@ -104,6 +111,14 @@ export const setUnpublishedEntries = (entries) => {
 
   entries.forEach((entry) => {
     entriesMap.set(getEntryKey(entry.collection, entry.slug), entry);
+  });
+
+  // Preserve any temporary entries from the current store
+  const currentEntries = get(unpublishedEntries);
+  currentEntries.forEach((entry, key) => {
+    if (entry.isTemporary && !entriesMap.has(key)) {
+      entriesMap.set(key, entry);
+    }
   });
 
   unpublishedEntries.set(entriesMap);

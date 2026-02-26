@@ -1,17 +1,10 @@
 <script>
-  import { Button, Group, Icon, Spacer } from '@sveltia/ui';
+  import { Button, Icon, Spacer } from '@sveltia/ui';
   import { get } from 'svelte/store';
   import { _ } from 'svelte-i18n';
 
   import { goto } from '$lib/services/app/navigation';
   import { repository } from '$lib/services/backends/git/github/repository';
-  import { activeBatch } from '$lib/services/contents/workflow/batch';
-  import {
-    buildBatchPreview,
-    deleteBatch,
-    publishBatch,
-    updateBatchStatus,
-  } from '$lib/services/contents/workflow/batch';
   import {
     currentWorkflowBranch,
     currentWorkflowEntry,
@@ -19,19 +12,26 @@
     unpublishedEntries,
     WORKFLOW_STATUS,
   } from '$lib/services/contents/workflow';
-  import { isPreviewEnabled } from '$lib/services/contents/workflow/preview';
-  import ConfirmDialog from './confirm-dialog.svelte';
+  import {
+    buildBatchPreview,
+    deleteBatch,
+    publishBatch,
+    updateBatchStatus,
+  } from '$lib/services/contents/workflow/batch';
+  import { isAnyPreviewBuilding, isPreviewEnabled } from '$lib/services/contents/workflow/preview';
+
   import { confirmDeleteBatch, confirmPublishBatch } from './confirm-dialog.js';
+  import ConfirmDialog from './confirm-dialog.svelte';
 
   /**
    * @import { Batch, BatchEntry, WorkflowStatus } from '$lib/types/private';
    */
 
-  /** @type {{ batch: Batch, onStatusChange?: (status: WorkflowStatus) => void, onDelete?: () => void }} */
-  let { batch, onStatusChange, onDelete } = $props();
+  // Props: batch, onStatusChange, onDelete, onDragStart, onDragEnd
+  const { batch, onStatusChange, onDelete, onDragStart, onDragEnd } = $props();
 
   /** @type {boolean} */
-  let isBusy = $derived(
+  const isBusy = $derived(
     (batch.isPersisting ?? false) ||
       (batch.isUpdatingStatus ?? false) ||
       (batch.isPublishing ?? false) ||
@@ -39,19 +39,23 @@
       (batch.isBuildingPreview ?? false),
   );
 
+  /** @type {boolean} Whether any preview (batch or regular entry) is currently building. */
+  const globalPreviewBuilding = $derived(isAnyPreviewBuilding());
+
   /** @type {boolean} */
-  let canViewPreview = $derived(
+  const canViewPreview = $derived(
     batch.previewStatus === 'ready' && batch.previewUrl !== null && batch.previewUrl !== undefined,
   );
 
   /** @type {string} */
-  let previewButtonLabel = $derived.by(() => {
+  const previewButtonLabel = $derived.by(() => {
     if (batch.isBuildingPreview) {
       return get(_)('building_preview', { default: 'Building...' });
     }
 
     if (canViewPreview) {
-      return get(_)('view_preview', { default: 'View Preview' });
+      // When preview is ready, show "Rebuild" option instead
+      return get(_)('rebuild_preview', { default: 'Rebuild' });
     }
 
     if (batch.previewStatus === 'error') {
@@ -62,7 +66,7 @@
   });
 
   /** @type {BatchEntry[]} */
-  let entriesList = $derived.by(() => [...batch.entries.values()]);
+  const entriesList = $derived.by(() => [...batch.entries.values()]);
 
   /**
    * Handle clicking on an entry to edit it.
@@ -75,29 +79,35 @@
       collection: entry.collection,
       slug: entry.slug,
       status: batch.status,
+      data: entry.data ?? {},
       branch: batch.branch,
       prNumber: batch.prNumber,
       headSha: batch.headSha,
       updatedAt: new Date(),
+      // Mark as temporary so it won't show in kanban (filtered in derived stores)
+      isTemporary: true,
     };
 
     // Add to unpublishedEntries store temporarily with the correct key
     unpublishedEntries.update((entries) => {
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Regular store, not Svelte store
       const newMap = new Map(entries);
+
       newMap.set(getEntryKey(entry.collection, entry.slug), tempUnpublishedEntry);
       return newMap;
     });
 
     // Configure workflow branch so the CMS loads the entry from the batch branch
-    currentWorkflowBranch.set({
-      branch: batch.branch,
-      prNumber: batch.prNumber,
-    });
+    currentWorkflowBranch.set(batch.branch);
 
     // Create a minimal workflow entry object
     currentWorkflowEntry.set(tempUnpublishedEntry);
 
-    goto(`/collections/${entry.collection}/entries/${entry.slug}`, { transitionType: 'forwards' });
+    // Navigate to workflow editor instead of regular editor
+    const encodedCollection = encodeURIComponent(entry.collection);
+    const encodedSlug = encodeURIComponent(entry.slug);
+
+    goto(`/workflow/edit/${encodedCollection}/${encodedSlug}`, { transitionType: 'forwards' });
   };
 
   /**
@@ -119,6 +129,7 @@
    */
   const handlePublish = async () => {
     const confirmed = await confirmPublishBatch();
+
     if (!confirmed) return;
 
     try {
@@ -134,6 +145,7 @@
    */
   const handleDelete = async () => {
     const confirmed = await confirmDeleteBatch();
+
     if (!confirmed) return;
 
     try {
@@ -146,14 +158,10 @@
   };
 
   /**
-   * Handle build preview.
+   * Handle build/rebuild preview.
+   * Always rebuilds - user can view preview separately if needed.
    */
   const handleBuildPreview = async () => {
-    if (canViewPreview && batch.previewUrl) {
-      globalThis.open(batch.previewUrl, '_blank');
-      return;
-    }
-
     try {
       await buildBatchPreview();
     } catch (/** @type {any} */ error) {
@@ -161,12 +169,23 @@
       console.error('Failed to build preview:', error);
     }
   };
+
+  /**
+   * Handle view preview in new tab.
+   */
+  const handleViewPreview = () => {
+    if (batch.previewUrl) {
+      globalThis.open(batch.previewUrl, '_blank');
+    }
+  };
 </script>
 
 <article
   class="entry-card batch-card"
   class:busy={isBusy}
-  draggable={false}
+  draggable={!isBusy}
+  ondragstart={onDragStart}
+  ondragend={onDragEnd}
 >
   <div class="batch-header">
     <div class="batch-title">
@@ -189,11 +208,7 @@
 
   <div class="batch-entries">
     {#each entriesList as entry (entry.collection + entry.slug)}
-      <button
-        type="button"
-        class="batch-entry"
-        onclick={() => editEntry(entry)}
-      >
+      <button type="button" class="batch-entry" onclick={() => editEntry(entry)}>
         <span class="entry-title">{entry.title}</span>
         <span class="entry-collection">{entry.collection}</span>
       </button>
@@ -210,6 +225,8 @@
         onclick={() => handleStatusChange(WORKFLOW_STATUS.PENDING_REVIEW)}
       />
     {:else if batch.status === WORKFLOW_STATUS.PENDING_REVIEW}
+      <!-- Commented out: In review status, users can drag the batch to change status -->
+      <!--
       <Button
         variant="tertiary"
         size="small"
@@ -224,11 +241,14 @@
         disabled={isBusy}
         onclick={() => handleStatusChange(WORKFLOW_STATUS.DRAFT)}
       />
+      -->
     {:else if batch.status === WORKFLOW_STATUS.PENDING_PUBLISH}
       <Button
         variant="primary"
         size="small"
-        label={batch.isPublishing ? $_('publishing', { default: 'Publishing...' }) : $_('publish_batch', { default: 'Publish Batch' })}
+        label={batch.isPublishing
+          ? $_('publishing', { default: 'Publishing...' })
+          : $_('publish_batch', { default: 'Publish Batch' })}
         disabled={isBusy}
         onclick={handlePublish}
       />
@@ -241,19 +261,28 @@
       />
     {/if}
 
-    {#if batch.status === WORKFLOW_STATUS.PENDING_REVIEW && isPreviewEnabled()}
+    {#if isPreviewEnabled()}
+      <!-- View Preview button - shown when preview is ready -->
+      {#if canViewPreview}
+        <Button
+          variant="tertiary"
+          size="small"
+          label={$_('view_preview', { default: 'View Preview' })}
+          onclick={handleViewPreview}
+        >
+          <Icon slot="start-icon" name="open_in_new" />
+        </Button>
+      {/if}
+
+      <!-- Rebuild button - always shown when preview is enabled -->
       <Button
         variant="tertiary"
         size="small"
         label={previewButtonLabel}
-        disabled={batch.isBuildingPreview}
+        disabled={batch.isBuildingPreview || globalPreviewBuilding}
         onclick={handleBuildPreview}
       >
-        {#if canViewPreview}
-          <Icon slot="start-icon" name="open_in_new" />
-        {:else}
-          <Icon slot="start-icon" name="visibility" />
-        {/if}
+        <Icon slot="start-icon" name="refresh" />
       </Button>
     {/if}
 

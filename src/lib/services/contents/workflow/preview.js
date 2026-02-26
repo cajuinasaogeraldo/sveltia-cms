@@ -20,6 +20,8 @@ const POLL_INTERVAL = 5000;
 const MAX_POLL_DURATION = 10 * 60 * 1000; // 10 minutes
 /** LocalStorage key for preview state. */
 const PREVIEW_STORAGE_KEY = 'sveltia-cms-preview-state';
+/** Flag to track if a preview is currently building (prevents concurrent builds). */
+let _isAnyPreviewBuilding = false;
 
 /**
  * @typedef {object} StoredPreviewState
@@ -144,6 +146,20 @@ const getPreviewUrlTemplate = () => {
 export const isPreviewEnabled = () => !!getPreviewUrlTemplate();
 
 /**
+ * Check if any preview is currently building.
+ * @returns {boolean} Whether a preview is currently building.
+ */
+export const isAnyPreviewBuilding = () => _isAnyPreviewBuilding;
+
+/**
+ * Reset the preview building flag. This should be called when a build completes
+ * (success, error, or timeout). Used by batch preview system.
+ */
+export const resetPreviewBuildingFlag = () => {
+  _isAnyPreviewBuilding = false;
+};
+
+/**
  * Build the preview URL for an entry by replacing placeholders. Supported placeholders include
  * `{{branch}}` (the entry's branch name), `{{branch_safe}}` (URL-safe branch name),
  * `{{collection}}` (the collection name), `{{slug}}` (the entry slug), `{{pr_number}}` (the pull
@@ -248,6 +264,8 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
   const poll = async () => {
     // Check if we've exceeded the max poll duration
     if (Date.now() - startTime > MAX_POLL_DURATION) {
+      _isAnyPreviewBuilding = false;
+
       updateUnpublishedEntry(collection, slug, {
         previewStatus: 'error',
         isBuildingPreview: false,
@@ -261,6 +279,7 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
 
     // Stop polling if entry no longer exists or preview was cancelled
     if (!entry || entry.previewStatus !== 'building') {
+      _isAnyPreviewBuilding = false;
       return;
     }
 
@@ -268,6 +287,8 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
 
     if (run) {
       if (run.status === 'completed') {
+        _isAnyPreviewBuilding = false;
+
         if (run.conclusion === 'success') {
           const url = buildPreviewUrl(entry);
 
@@ -324,7 +345,7 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
  * @param {string} collection Collection name.
  * @param {string} slug Entry slug.
  * @returns {Promise<void>}
- * @throws {Error} If preview_url is not configured or entry not found.
+ * @throws {Error} If preview_url is not configured, entry not found, or another build is in progress.
  */
 export const buildPreview = async (collection, slug) => {
   const entry = getUnpublishedEntry(collection, slug);
@@ -337,11 +358,18 @@ export const buildPreview = async (collection, slug) => {
     throw new Error('Preview is not configured. Set preview_url in your CMS config.');
   }
 
+  // Prevent concurrent builds
+  if (_isAnyPreviewBuilding) {
+    throw new Error('Another preview is currently building. Please wait for it to complete.');
+  }
+
   // Add to preview queue - this invalidates previous previews
   enqueuePreview(collection, slug);
 
   const dispatchTime = new Date();
   const { headSha } = entry;
+
+  _isAnyPreviewBuilding = true;
 
   updateUnpublishedEntry(collection, slug, {
     isBuildingPreview: true,
@@ -369,6 +397,8 @@ export const buildPreview = async (collection, slug) => {
   } catch (/** @type {any} */ error) {
     // eslint-disable-next-line no-console
     console.error('Failed to build preview:', error);
+
+    _isAnyPreviewBuilding = false;
 
     updateUnpublishedEntry(collection, slug, {
       isBuildingPreview: false,
@@ -434,6 +464,8 @@ export const restorePreviewState = (collection, slug) => {
 
     if (elapsed > MAX_POLL_DURATION) {
       // Timeout - mark as error
+      _isAnyPreviewBuilding = false;
+
       updateUnpublishedEntry(collection, slug, {
         previewStatus: 'error',
         isBuildingPreview: false,
@@ -444,6 +476,8 @@ export const restorePreviewState = (collection, slug) => {
     }
 
     // Resume polling
+    _isAnyPreviewBuilding = true;
+
     updateUnpublishedEntry(collection, slug, {
       previewStatus: 'building',
       isBuildingPreview: true,

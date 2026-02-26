@@ -376,6 +376,7 @@
   bind:open={showDeleteDialog}
   title={$_('delete_entry')}
   okLabel={$_('delete')}
+  cancelLabel={$_('cancel')}
   onOk={async () => {
     if (originalEntry) {
       await deleteEntries([originalEntry], associatedAssets);

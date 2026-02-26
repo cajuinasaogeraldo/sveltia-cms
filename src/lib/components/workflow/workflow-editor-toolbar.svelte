@@ -1,7 +1,7 @@
 <script>
   import {
     Alert,
-    AlertDialog,
+    ConfirmationDialog,
     Button,
     Divider,
     Icon,
@@ -217,12 +217,15 @@
   </Alert>
 </Toast>
 
-<AlertDialog
+<ConfirmationDialog
   bind:open={showErrorDialog}
   title={$_('saving_entry.error.title')}
-  onClose={() => {
+  okLabel={$_('ok', { default: 'OK' })}
+  onOk={() => {
+    showErrorDialog = false;
     menuButton?.focus();
   }}
+  showCancel={false}
 >
   {$_('saving_entry.error.description')}
   {#if errorMessage}
@@ -230,7 +233,7 @@
       {errorMessage}
     </div>
   {/if}
-</AlertDialog>
+</ConfirmationDialog>
 
 <style lang="scss">
   .workflow-badge {

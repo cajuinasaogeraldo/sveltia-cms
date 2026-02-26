@@ -1154,6 +1154,8 @@
  * @property {string} [previewForSha] SHA of the commit the preview was built for.
  * @property {Date} [updatedAt] Last update time.
  * @property {string} [author] Author of the entry.
+ * @property {boolean} [isTemporary] Mark as temporary entry (won't show in kanban).
+ * @property {boolean} [isBatch] Mark as batch entry.
  */
 
 /**

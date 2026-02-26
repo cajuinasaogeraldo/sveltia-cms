@@ -76,6 +76,10 @@ export const fetchLastCommit = async () => {
 export const commitChanges = async (changes, options) => {
   const { owner, repo, branch } = repository;
 
+  // Debug log
+  // eslint-disable-next-line no-console
+  console.log('[commitChanges] Committing to:', { owner, repo, branch });
+
   const additions = await Promise.all(
     changes
       .filter(({ action }) => ['create', 'update', 'move'].includes(action))
@@ -106,12 +110,24 @@ export const commitChanges = async (changes, options) => {
     }
   `;
 
+  let lastCommitHash;
+  try {
+    lastCommitHash = (await fetchLastCommit()).hash;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[commitChanges] Failed to fetch last commit:', error);
+    throw error;
+  }
+
+  // eslint-disable-next-line no-console
+  console.log('[commitChanges] Last commit hash:', lastCommitHash);
+
   const input = {
     branch: {
       repositoryNameWithOwner: `${owner}/${repo}`,
       branchName: branch,
     },
-    expectedHeadOid: (await fetchLastCommit()).hash,
+    expectedHeadOid: lastCommitHash,
     fileChanges: { additions, deletions },
     message: { headline: createCommitMessage(changes, options) },
   };

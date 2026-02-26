@@ -4,7 +4,6 @@
 
   import {
     activeBatch,
-    allBatches,
     batchModeEnabled,
     getSelectableBatches,
     setActiveBatch,
@@ -17,14 +16,16 @@
   const handleBatchChange = (/** @type {Event} */ event) => {
     const select = /** @type {HTMLSelectElement} */ (event.target);
     const batchId = select.value;
+
     if (batchId) {
       setActiveBatch(batchId);
     }
   };
 
-  /** @type {import('$lib/components').SelectOption[]} */
+  /** @type {{ value: string, label: string }[]} */
   const batchOptions = $derived.by(() => {
     const batches = getSelectableBatches();
+
     return batches.map((b) => ({
       value: b.id,
       label: `${$_('batch', { default: 'Batch' })} (${b.entries.size})`,
@@ -32,9 +33,7 @@
   });
 
   /** Show selector only when batch mode is enabled and there are multiple batches */
-  const showSelector = $derived(
-    $batchModeEnabled && batchOptions.length > 1,
-  );
+  const showSelector = $derived($batchModeEnabled && batchOptions.length > 1);
 </script>
 
 {#if showSelector}

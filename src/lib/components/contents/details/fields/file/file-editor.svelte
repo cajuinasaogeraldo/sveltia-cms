@@ -347,6 +347,7 @@
   bind:open={showPhotoCreditDialog}
   title={$_('assets_dialog.photo_credit.title')}
   okLabel={$_('copy')}
+  cancelLabel={$_('cancel')}
   onOk={() => {
     navigator.clipboard.writeText(photoCredit);
   }}

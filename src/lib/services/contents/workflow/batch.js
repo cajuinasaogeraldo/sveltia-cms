@@ -16,9 +16,14 @@ import {
 import { repository } from '$lib/services/backends/git/github/repository';
 import { createWorkflowMessage } from '$lib/services/backends/git/shared/commits';
 import { cmsConfig } from '$lib/services/config';
+import { getValidCollections } from '$lib/services/contents/collection';
 import { getEntryKey, WORKFLOW_STATUS } from '$lib/services/contents/workflow';
 import { commitToBranch } from '$lib/services/contents/workflow/actions';
-import { triggerRepositoryDispatch } from '$lib/services/contents/workflow/preview';
+import {
+  isAnyPreviewBuilding,
+  resetPreviewBuildingFlag,
+  triggerRepositoryDispatch,
+} from '$lib/services/contents/workflow/preview';
 
 /**
  * @import { Batch } from '$lib/types/private';
@@ -32,8 +37,109 @@ const BATCH_MODE_STORAGE_KEY = 'sveltia-cms.batch-mode';
 const BATCHES_STORAGE_KEY = 'sveltia-cms.batches';
 const BATCH_PREVIEW_STORAGE_KEY = 'sveltia-cms-batch-preview-state';
 
+/**
+ * Find collection and slug from a file path.
+ * This matches the file path against collection folders to determine the correct collection.
+ * @param {string} filePath File path from the PR.
+ * @returns {{ collectionName: string | null, collection: any, slug: string }} Collection info.
+ */
+const findCollectionFromPath = (filePath) => {
+  // Skip asset files (images, fonts, videos, etc.) - these are not content entries
+  const assetExtensions =
+    /\.(png|jpe?g|gif|svg|webp|ico|woff2?|ttf|eot|mp4|webm|mp3|wav|pdf|zip|tar|gz)$/i;
+  if (assetExtensions.test(filePath)) {
+    return { collectionName: null, collection: null, slug: '' };
+  }
+
+  // Skip common asset and static directories
+  if (
+    filePath.includes('/assets/') ||
+    filePath.includes('/static/') ||
+    filePath.includes('/public/') ||
+    filePath.includes('/fonts/') ||
+    filePath.includes('/images/') ||
+    filePath.includes('/videos/')
+  ) {
+    return { collectionName: null, collection: null, slug: '' };
+  }
+
+  const collections = getValidCollections();
+
+  for (const collection of collections) {
+    // @ts-ignore - folder property exists on entry collections
+    const folder = collection.folder;
+
+    if (!folder) continue;
+
+    // Normalize the folder path - remove leading/trailing slashes
+    const normalizedFolder = folder.replace(/^\/+/, '').replace(/\/+$/, '');
+
+    // Try different path formats to match
+    // The file path could be: content/posts/slug.md, src/content/posts/slug.md, posts/slug.md
+    const possiblePaths = [
+      filePath, // Original path
+      filePath.replace(/^src\//, ''), // Remove src/ prefix
+      filePath.replace(/^content\//, ''), // Remove content/ prefix
+      filePath.replace(/^src\/content\//, ''), // Remove src/content/ prefix
+    ];
+
+    for (const testPath of possiblePaths) {
+      if (testPath.startsWith(`${normalizedFolder}/`)) {
+        // Extract the relative path after the folder
+        const relativePath = testPath.substring(`${normalizedFolder}/`.length);
+
+        // Remove file extension and locale suffix to get slug
+        // Handles: slug.md, slug.LOCALE.md, slug.json, etc.
+        let slug = relativePath
+          .replace(/\.(md|json|yaml|yml)$/i, '')
+          .replace(/\.[a-z]{2}(-[A-Z]{2})?$/, ''); // Remove locale suffix
+
+        // Handle nested paths like '2024/my-post.md' or 'en/my-post.md'
+        const pathParts = relativePath.split('/');
+
+        if (pathParts.length > 1) {
+          const lastPart = pathParts[pathParts.length - 1];
+          const lastPartSlug = lastPart
+            .replace(/\.(md|json|yaml|yml)$/i, '')
+            .replace(/\.[a-z]{2}(-[A-Z]{2})?$/, '');
+
+          // Check if the second-to-last part is a locale (for multiple_folders i18n)
+          // @ts-ignore - _i18n property exists
+          const i18nStruct = collection._i18n?.structure;
+
+          if (i18nStruct === 'multiple_folders' && pathParts.length === 2) {
+            // For multiple_folders, the locale is in the path: posts/en/my-post.md
+            // The slug is the filename
+            slug = lastPartSlug;
+          } else if (
+            i18nStruct !== 'multiple_folders' &&
+            pathParts[0].match(/^[a-z]{2}(-[A-Z]{2})?$/)
+          ) {
+            // Locale folder detected but not using multiple_folders - might be nested content
+            slug = pathParts.slice(0, -1).join('/') + '/' + lastPartSlug;
+          } else if (lastPart === 'index' || lastPart === 'index.md' || lastPart === 'index.json') {
+            // Index file - slug is the parent folder
+            slug = pathParts[pathParts.length - 2] || '';
+          } else {
+            // Nested path without locale - use the last part as slug
+            slug = lastPartSlug;
+          }
+        }
+
+        return {
+          collectionName: collection.name,
+          collection,
+          slug,
+        };
+      }
+    }
+  }
+
+  return { collectionName: null, collection: null, slug: '' };
+};
+
 /** Toggle to enable/disable batch mode with persistence. */
-export const batchModeEnabled = writable(false);
+export const batchModeEnabled = writable(true);
 
 // Load initial value and persist changes
 (async () => {
@@ -226,7 +332,7 @@ const createBatch = async ({ collection, slug, title, data, changes, branchName 
       changes,
       prNumber: existingPR.number,
       prStatus: getStatusFromLabels(existingPR.labels),
-      existingHeadSha: existingPR.headSha,
+      existingHeadSha: existingPR.headSha ?? '',
     });
     return;
   }
@@ -277,7 +383,7 @@ const createBatch = async ({ collection, slug, title, data, changes, branchName 
     entries,
     status: WORKFLOW_STATUS.DRAFT,
     createdAt: new Date(),
-    previewStatus: 'idle',
+    previewStatus: /** @type {'idle'} */ ('idle'),
     previewUrl: null,
     isActive: true,
     headSha: commitSha,
@@ -379,7 +485,7 @@ const addToBatchToExistingBranch = async (
     entries,
     status: prStatus,
     createdAt: new Date(),
-    previewStatus: 'idle',
+    previewStatus: /** @type {'idle'} */ ('idle'),
     previewUrl: null,
     isActive: true,
     headSha: commitSha,
@@ -542,6 +648,13 @@ export const publishBatch = async () => {
       // Ignore branch deletion errors
     }
 
+    // Clear preview state from localStorage
+    try {
+      localStorage.removeItem(BATCH_PREVIEW_STORAGE_KEY);
+    } catch {
+      // Ignore storage errors
+    }
+
     // Remove from list and clear active
     allBatches.update((batches) => batches.filter((b) => b.id !== batch.id));
     activeBatch.set(null);
@@ -575,6 +688,13 @@ export const deleteBatch = async () => {
       await deleteBranch(batch.branch);
     } catch {
       // Ignore branch deletion errors
+    }
+
+    // Clear preview state from localStorage
+    try {
+      localStorage.removeItem(BATCH_PREVIEW_STORAGE_KEY);
+    } catch {
+      // Ignore storage errors
     }
 
     // Remove from list and clear active
@@ -649,11 +769,9 @@ export const loadExistingBatches = async () => {
 
     if (batchPR) {
       // Load entries from the PR
-      const { getPullRequestFiles } = await import('$lib/services/backends/git/github/pull-requests');
+      const { getPullRequestFiles } =
+        await import('$lib/services/backends/git/github/pull-requests');
       const prFiles = await getPullRequestFiles(batchPR.number);
-
-      // eslint-disable-next-line no-console
-      console.log('[Batch] Recovering from PR #', batchPR.number, 'with', prFiles.length, 'files');
 
       // Create entries from changed files
       /** @type {Map<string, BatchEntry>} */
@@ -663,52 +781,10 @@ export const loadExistingBatches = async () => {
         // Skip deleted files
         if (file.status === 'removed') continue;
 
-        // eslint-disable-next-line no-console
-        console.log('[Batch] Processing file:', file.path);
+        // Use the helper function to find collection and slug from path
+        const { collectionName, slug } = findCollectionFromPath(file.path);
 
-        // Try to parse the file path to get collection and slug
-        // Format: content/collection/slug.md or content/collection/slug/index.md
-        const pathParts = file.path.split('/');
-        if (pathParts.length < 2) continue;
-
-        const fileName = pathParts[pathParts.length - 1];
-        const slug = fileName.replace(/\.(md|json|yaml|yml)$/i, '');
-        const collection = pathParts[pathParts.length - 2];
-
-        // Check if this is a content file (supports multiple path formats)
-        const isContentFile =
-          file.path.includes('/content/') ||
-          file.path.includes('/src/content/') ||
-          file.path.includes('/src/data/') ||
-          file.path.match(/^(posts|pages|content|docs|data)\//) ||
-          file.path.match(/^src\/(posts|pages|content|docs|data)\//);
-
-        if (!isContentFile) {
-          // eslint-disable-next-line no-console
-          console.log('[Batch] Skipping non-content file:', file.path);
-          continue;
-        }
-
-        // Extract collection name from path
-        let collectionName = collection;
-
-        // Remove common prefixes
-        if (file.path.startsWith('src/content/')) {
-          collectionName = file.path.replace('src/content/', '').split('/')[0];
-        } else if (file.path.startsWith('src/data/')) {
-          collectionName = file.path.replace('src/data/', '').split('/')[0];
-        } else if (file.path.startsWith('src/')) {
-          collectionName = file.path.replace('src/', '').split('/')[0];
-        } else if (file.path.startsWith('content/')) {
-          collectionName = file.path.replace('content/', '').split('/')[0];
-        } else {
-          collectionName = file.path.split('/')[0];
-        }
-
-        // Skip if collection is the same as slug (it's a folder/collection index)
-        if (collectionName === slug) {
-          // eslint-disable-next-line no-console
-          console.log('[Batch] Skipping index file:', file.path);
+        if (!collectionName || !slug) {
           continue;
         }
 
@@ -716,8 +792,6 @@ export const loadExistingBatches = async () => {
 
         // Only add if not already in the map
         if (!entriesMap.has(key)) {
-          // eslint-disable-next-line no-console
-          console.log('[Batch] Adding entry:', collectionName, slug, 'from:', file.path);
           entriesMap.set(key, {
             collection: collectionName,
             slug,
@@ -726,9 +800,6 @@ export const loadExistingBatches = async () => {
           });
         }
       }
-
-      // eslint-disable-next-line no-console
-      console.log('[Batch] Recovered', entriesMap.size, 'entries from PR');
 
       // Create a batch from the existing PR
       const prStatus = getStatusFromLabels(batchPR.labels);
@@ -741,7 +812,7 @@ export const loadExistingBatches = async () => {
         entries: entriesMap,
         status: prStatus,
         createdAt: new Date(batchPR.createdAt),
-        previewStatus: 'idle',
+        previewStatus: /** @type {'idle'} */ ('idle'),
         previewUrl: null,
         isActive: true,
         headSha: batchPR.headSha,
@@ -771,56 +842,45 @@ const restoreBatchPreviewState = (batch) => {
   try {
     const stored = localStorage.getItem(BATCH_PREVIEW_STORAGE_KEY);
 
-    // eslint-disable-next-line no-console
-    console.log('[Batch Preview] Restoring from localStorage:', !!stored);
-
     if (!stored) return;
 
     const states = JSON.parse(stored);
-    // eslint-disable-next-line no-console
-    console.log('[Batch Preview] Stored states:', states);
 
-    const batchState = states.find((s) => s.batchId === batch.id || (s.collection === 'batch' && s.slug === 'changes'));
-
-    // eslint-disable-next-line no-console
-    console.log('[Batch Preview] Found batch state:', batchState);
+    // Only restore state if it matches THIS batch's ID - prevents showing wrong preview state
+    const batchState = states.find(
+      (/** @type {{ batchId: string }} */ s) => s.batchId === batch.id,
+    );
 
     if (batchState && batchState.status !== 'building') {
+      // Also validate that the PR number matches (in case batch was recreated)
+      if (batchState.prNumber !== batch.prNumber) {
+        return;
+      }
+
       // If preview is ready or has an error, restore the state
       if (batchState.status === 'ready' && batchState.previewUrl) {
-        // eslint-disable-next-line no-console
-        console.log('[Batch Preview] Restoring ready state with URL:', batchState.previewUrl);
-
         const updated = {
           ...batch,
-          previewStatus: 'ready',
+          previewStatus: /** @type {'ready'} */ ('ready'),
           previewUrl: batchState.previewUrl,
           isBuildingPreview: false,
         };
 
         activeBatch.set(updated);
-        allBatches.update((batches) =>
-          batches.map((b) => (b.id === batch.id ? updated : b)),
-        );
+        allBatches.update((batches) => batches.map((b) => (b.id === batch.id ? updated : b)));
       } else if (batchState.status === 'error') {
-        // eslint-disable-next-line no-console
-        console.log('[Batch Preview] Restoring error state');
-
         const updated = {
           ...batch,
-          previewStatus: 'error',
+          previewStatus: /** @type {'error'} */ ('error'),
           isBuildingPreview: false,
         };
 
         activeBatch.set(updated);
-        allBatches.update((batches) =>
-          batches.map((b) => (b.id === batch.id ? updated : b)),
-        );
+        allBatches.update((batches) => batches.map((b) => (b.id === batch.id ? updated : b)));
       }
     }
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.error('[Batch Preview] Error restoring preview state:', e);
+  } catch {
+    // Ignore storage errors
   }
 };
 
@@ -842,6 +902,7 @@ allBatches.subscribe(async (batches) => {
 /**
  * Builds a preview for the current batch.
  * Uses the same preview system as individual entries.
+ * Checks if any preview is currently building to prevent concurrent builds.
  */
 export const buildBatchPreview = async () => {
   const batch = get(activeBatch);
@@ -850,18 +911,27 @@ export const buildBatchPreview = async () => {
     throw new Error('No active batch');
   }
 
+  // Prevent concurrent builds - check if any preview is building
+  if (isAnyPreviewBuilding()) {
+    throw new Error('Another preview is currently building. Please wait for it to complete.');
+  }
+
   // Update status
   activeBatch.update((b) =>
-    b ? { ...b, previewStatus: 'building', isBuildingPreview: true } : null,
+    b
+      ? { ...b, previewStatus: /** @type {'building'} */ ('building'), isBuildingPreview: true }
+      : null,
   );
   allBatches.update((batches) =>
     batches.map((b) =>
-      b.id === batch.id ? { ...b, previewStatus: 'building', isBuildingPreview: true } : b,
+      b.id === batch.id
+        ? { ...b, previewStatus: /** @type {'building'} */ ('building'), isBuildingPreview: true }
+        : b,
     ),
   );
 
   try {
-    const { headSha } = batch;
+    const { headSha = '' } = batch;
 
     // Create a "virtual" entry for the preview system
     /** @type {any} */
@@ -874,20 +944,25 @@ export const buildBatchPreview = async () => {
       headSha,
       status: WORKFLOW_STATUS.DRAFT,
       data: {},
+      updatedAt: new Date(),
     };
 
     // Trigger the preview build
     await triggerRepositoryDispatch(previewEntry);
 
     // Start polling for workflow status
-    pollBatchPreviewStatus(batch, new Date(), headSha);
+    pollBatchPreviewStatus(batch, new Date(), headSha ?? '');
   } catch (/** @type {any} */ error) {
     activeBatch.update((b) =>
-      b ? { ...b, previewStatus: 'error', isBuildingPreview: false } : null,
+      b
+        ? { ...b, previewStatus: /** @type {'error'} */ ('error'), isBuildingPreview: false }
+        : null,
     );
     allBatches.update((batches) =>
       batches.map((b) =>
-        b.id === batch.id ? { ...b, previewStatus: 'error', isBuildingPreview: false } : b,
+        b.id === batch.id
+          ? { ...b, previewStatus: /** @type {'error'} */ ('error'), isBuildingPreview: false }
+          : b,
       ),
     );
     throw error;
@@ -917,11 +992,13 @@ const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
    */
   const savePreviewState = (status, url) => {
     try {
-      const key = `batch/changes`;
       const stored = localStorage.getItem(BATCH_PREVIEW_STORAGE_KEY);
       const states = stored ? JSON.parse(stored) : [];
 
-      const index = states.findIndex((s) => s.collection === 'batch' && s.slug === 'changes');
+      const index = states.findIndex(
+        (/** @type {{ collection: string, slug: string }} */ s) =>
+          s.collection === 'batch' && s.slug === 'changes',
+      );
       const entry = {
         collection: 'batch',
         slug: 'changes',
@@ -940,7 +1017,7 @@ const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
       }
 
       localStorage.setItem(BATCH_PREVIEW_STORAGE_KEY, JSON.stringify(states));
-    } catch (e) {
+    } catch {
       // Ignore storage errors
     }
   };
@@ -951,36 +1028,33 @@ const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
   const poll = async () => {
     // Check if we've exceeded the max poll duration
     if (Date.now() - startTime > MAX_POLL_DURATION) {
+      resetPreviewBuildingFlag();
       updateBatchPreviewStatus('batch', 'changes', 'error', null);
       savePreviewState('error', null);
-      // eslint-disable-next-line no-console
-      console.warn('[Batch Preview] Polling timeout');
       return;
     }
 
     // Get current batch state
     const currentBatch = get(activeBatch);
     if (!currentBatch || currentBatch.id !== batch.id) {
-      // Batch is no longer active
+      // Batch is no longer active - reset flag
+      resetPreviewBuildingFlag();
       return;
     }
 
     // Stop polling if preview is no longer building
     if (currentBatch.previewStatus !== 'building') {
+      resetPreviewBuildingFlag();
       return;
     }
 
     try {
-      // eslint-disable-next-line no-console
-      console.log('[Batch Preview] Polling for workflow run...');
-
       const run = await findWorkflowRun(dispatchTime);
 
       if (run) {
-        // eslint-disable-next-line no-console
-        console.log('[Batch Preview] Found workflow run:', run.status, run.conclusion);
-
         if (run.status === 'completed') {
+          resetPreviewBuildingFlag();
+
           if (run.conclusion === 'success') {
             // Build preview URL for batch
             const url = buildPreviewUrl({
@@ -990,16 +1064,13 @@ const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
               branch: batch.branch,
               prNumber: batch.prNumber,
               headSha,
+              status: WORKFLOW_STATUS.DRAFT,
+              data: {},
             });
-
-            // eslint-disable-next-line no-console
-            console.log('[Batch Preview] Preview ready:', url);
 
             updateBatchPreviewStatus('batch', 'changes', 'ready', url);
             savePreviewState('ready', url);
           } else {
-            // eslint-disable-next-line no-console
-            console.warn('[Batch Preview] Workflow failed:', run.conclusion);
             updateBatchPreviewStatus('batch', 'changes', 'error', null);
             savePreviewState('error', null);
           }
@@ -1013,9 +1084,8 @@ const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
 
       // Continue polling
       setTimeout(poll, POLL_INTERVAL);
-    } catch (/** @type {any} */ error) {
-      // eslint-disable-next-line no-console
-      console.error('[Batch Preview] Error polling:', error);
+    } catch {
+      // Ignore errors - we'll retry on next poll
       setTimeout(poll, POLL_INTERVAL);
     }
   };
@@ -1045,7 +1115,7 @@ export const updateBatchPreviewStatus = (collection, slug, status, url) => {
   /** @type {Batch} */
   const updated = {
     ...batch,
-    previewStatus: status,
+    previewStatus: /** @type {PreviewStatus} */ (status),
     previewUrl: url ?? null,
     isBuildingPreview: status === 'building',
   };

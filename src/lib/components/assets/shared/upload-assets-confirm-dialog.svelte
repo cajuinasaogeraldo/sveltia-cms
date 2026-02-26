@@ -36,6 +36,7 @@
   open={$showUploadAssetsConfirmDialog}
   title={$_(originalAsset ? 'replace_asset' : 'upload_assets')}
   okLabel={$_(originalAsset ? 'replace' : 'upload')}
+  cancelLabel={$_('cancel')}
   okDisabled={!files.length}
   onOk={async () => {
     await saveAssets({ files, folder, originalAsset }, { commitType: 'uploadMedia' });

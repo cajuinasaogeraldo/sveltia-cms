@@ -148,11 +148,20 @@ export const loadUnpublishedEntries = async () => {
  * @returns {Promise<string | undefined>} Commit SHA if available.
  */
 export const commitToBranch = async (branchName, changes) => {
+  // Import graphqlVars dynamically to avoid circular dependency
+  const { graphqlVars } = await import('$lib/services/backends/git/shared/api');
+
   // Temporarily switch repository branch context
   const originalBranch = repository.branch;
+  const originalGraphqlBranch = graphqlVars.branch;
 
   try {
     Object.assign(repository, { branch: branchName });
+    Object.assign(graphqlVars, { branch: branchName });
+
+    // Debug log
+    // eslint-disable-next-line no-console
+    console.log('[commitToBranch] Committing to branch:', branchName, 'original:', originalBranch);
 
     const result = await githubCommitChanges(changes, { commitType: 'create' });
 
@@ -160,6 +169,7 @@ export const commitToBranch = async (branchName, changes) => {
   } finally {
     // Restore original branch
     Object.assign(repository, { branch: originalBranch });
+    Object.assign(graphqlVars, { branch: originalGraphqlBranch });
   }
 };
 
