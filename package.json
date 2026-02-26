@@ -12,6 +12,10 @@
   },
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
   "scripts": {
     "build": "vite build",
     "build:watch": "vite build --watch",
