@@ -25,6 +25,9 @@ vi.mock('$lib/services/backends', async () => {
 import { fetchAPI } from '$lib/services/backends/git/shared/api';
 
 // eslint-disable-next-line import/first
+import { resetPipelineMonitor } from '$lib/services/builds/pipeline-monitor';
+
+// eslint-disable-next-line import/first
 import {
   clearLiveBuildState,
   getBuildHistory,
@@ -41,7 +44,8 @@ import {
 describe('live-status', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    resetPipelineMonitor();
     localStorage.clear();
     clearLiveBuildState();
     stopLiveBuildPolling();
@@ -51,6 +55,7 @@ describe('live-status', () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
     stopLiveBuildPolling();
+    resetPipelineMonitor();
   });
 
   describe('fetchWorkflowRuns', () => {
@@ -74,11 +79,11 @@ describe('live-status', () => {
       await refreshLiveBuilds();
 
       expect(fetchAPI).toHaveBeenCalledWith(
-        '/repos/test-owner/test-repo/actions/runs?branch=main&per_page=5',
+        '/repos/test-owner/test-repo/actions/runs?per_page=100',
       );
     });
 
-    test('falls back to master branch if main has no runs', async () => {
+    test('uses centralized single runs query', async () => {
       vi.mocked(fetchAPI)
         .mockResolvedValueOnce({ workflow_runs: [] })
         .mockResolvedValueOnce({
@@ -98,9 +103,9 @@ describe('live-status', () => {
 
       await refreshLiveBuilds();
 
-      expect(fetchAPI).toHaveBeenCalledTimes(2);
-      expect(fetchAPI).toHaveBeenLastCalledWith(
-        '/repos/test-owner/test-repo/actions/runs?branch=master&per_page=5',
+      expect(fetchAPI).toHaveBeenCalledTimes(1);
+      expect(fetchAPI).toHaveBeenCalledWith(
+        '/repos/test-owner/test-repo/actions/runs?per_page=100',
       );
     });
   });
@@ -267,8 +272,8 @@ describe('live-status', () => {
       startLiveBuildPolling();
       startLiveBuildPolling();
 
-      // Initial poll + scheduled poll = 2 calls (new behavior with dynamic polling)
-      expect(fetchAPI).toHaveBeenCalledTimes(2);
+      // Single centralized listener should trigger only one immediate poll
+      expect(fetchAPI).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -411,24 +416,27 @@ describe('live-status', () => {
       localStorage.setItem('sveltia-cms-live-builds', JSON.stringify(storedState));
       loadInitialState();
 
-      vi.mocked(fetchAPI)
-        .mockResolvedValueOnce({ workflow_runs: [] })
-        .mockResolvedValueOnce({ workflow_runs: [] })
-        .mockResolvedValueOnce({
-          id: 999,
-          name: 'Preview Deploy',
-          status: 'completed',
-          conclusion: 'success',
-          html_url: 'https://github.com/test/repo/actions/runs/999',
-          created_at: '2025-01-01T00:00:00Z',
-          updated_at: '2025-01-01T00:05:00Z',
-          head_sha: 'xyz999',
-          head_branch: 'feature/test-branch',
-        });
+      vi.mocked(fetchAPI).mockResolvedValue({
+        workflow_runs: [
+          {
+            id: 999,
+            name: 'Preview Deploy',
+            status: 'completed',
+            conclusion: 'success',
+            html_url: 'https://github.com/test/repo/actions/runs/999',
+            created_at: '2025-01-01T00:00:00Z',
+            updated_at: '2025-01-01T00:05:00Z',
+            head_sha: 'xyz999',
+            head_branch: 'feature/test-branch',
+          },
+        ],
+      });
 
       await refreshLiveBuilds();
 
-      expect(fetchAPI).toHaveBeenCalledWith('/repos/test-owner/test-repo/actions/runs/999');
+      expect(fetchAPI).toHaveBeenCalledWith(
+        '/repos/test-owner/test-repo/actions/runs?per_page=100',
+      );
       expect(getCurrentBuild()).toBeNull();
       expect(getBuildHistory()[0]?.id).toBe(999);
       expect(getBuildHistory()[0]?.conclusion).toBe('success');

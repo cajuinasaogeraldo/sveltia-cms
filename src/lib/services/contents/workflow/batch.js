@@ -853,36 +853,23 @@ const findActiveBatchPreviewWorkflow = async () => {
       await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${query}`)
     );
 
-    // eslint-disable-next-line no-console
-    console.log('[Batch Preview Debug] Looking for preview workflow', { resultCount: result.workflow_runs?.length });
-
     if (result.workflow_runs?.length > 0) {
-      // Log all workflows for debugging
-      // eslint-disable-next-line no-console
-      console.log('[Batch Preview Debug] All running workflows:', result.workflow_runs.map((w) => ({ name: w.name, branch: w.head_branch, status: w.status })));
-
       // Look for ANY workflow with "preview" in the name
       // Don't filter by branch since repository_dispatch runs on default branch (main)
-      const previewRun = result.workflow_runs.find((run) =>
-        run.name && run.name.toLowerCase().includes('preview')
+      const previewRun = result.workflow_runs.find(
+        (run) => run.name && run.name.toLowerCase().includes('preview'),
       );
 
       if (previewRun) {
-        // eslint-disable-next-line no-console
-        console.log('[Batch Preview Debug] Found preview workflow:', previewRun.name, 'on branch:', previewRun.head_branch);
         return {
           id: previewRun.id,
           status: previewRun.status,
           headSha: previewRun.head_sha,
         };
       }
-
-      // eslint-disable-next-line no-console
-      console.log('[Batch Preview Debug] No preview workflow found');
     }
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('[Batch Preview Debug] Error fetching workflows:', error);
+  } catch {
+    // Ignore errors - we'll retry on next poll
   }
 
   return undefined;
@@ -986,6 +973,23 @@ const restoreBatchPreviewState = async (batch) => {
         activeBatch.set(updated);
         allBatches.update((batches) => batches.map((b) => (b.id === batch.id ? updated : b)));
       }
+    } else if (batchState && batchState.status === 'building') {
+      const updated = {
+        ...batch,
+        previewStatus: /** @type {'building'} */ ('building'),
+        isBuildingPreview: true,
+        workflowRunId: batchState.workflowRunId,
+        previewForSha: batchState.headSha,
+      };
+
+      activeBatch.set(updated);
+      allBatches.update((batches) => batches.map((b) => (b.id === batch.id ? updated : b)));
+
+      const dispatchTime = batchState.dispatchTime
+        ? new Date(batchState.dispatchTime)
+        : new Date(Date.now() - 60000);
+
+      pollBatchPreviewStatus(updated, dispatchTime, batchState.headSha ?? batch.headSha ?? '');
     }
   } catch {
     // Ignore storage errors
@@ -1086,20 +1090,22 @@ export const buildBatchPreview = async () => {
  * @param {string} headSha HEAD SHA for the preview.
  */
 export const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
-  const POLL_INTERVAL = 3000; // Poll every 3 seconds instead of 5
   const MAX_POLL_DURATION = 10 * 60 * 1000; // 10 minutes
   const startTime = Date.now();
 
-  // Import the findWorkflowRun function dynamically
-  const { findWorkflowRun } = await import('$lib/services/contents/workflow/preview');
+  // Import the preview run selector and task scheduler
+  const { registerGlobalPreviewPollTask, selectPreviewRunFromRuns } =
+    await import('$lib/services/contents/workflow/preview');
+  const { refreshPipelineRuns } = await import('$lib/services/builds/pipeline-monitor');
   const { buildPreviewUrl } = await import('$lib/services/contents/workflow/preview');
 
   /**
    * Save preview state to localStorage.
    * @param {string} status Preview status.
    * @param {string|null} [url] Preview URL.
+   * @param {number | undefined} [workflowRunId] Workflow run ID.
    */
-  const savePreviewState = (status, url) => {
+  const savePreviewState = (status, url, workflowRunId) => {
     try {
       const stored = localStorage.getItem(BATCH_PREVIEW_STORAGE_KEY);
       const states = stored ? JSON.parse(stored) : [];
@@ -1117,6 +1123,7 @@ export const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
         headSha,
         previewUrl: url,
         batchId: batch.id,
+        workflowRunId,
       };
 
       if (index >= 0) {
@@ -1132,15 +1139,17 @@ export const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
   };
 
   /**
-   * Poll once and schedule the next poll if needed.
+   * Poll once.
+   * @param {any[]} runs Workflow runs snapshot.
+   * @returns {Promise<boolean>} True to continue polling, false to stop.
    */
-  const poll = async () => {
+  const poll = async (/** @type {any[]} */ runs) => {
     // Check if we've exceeded the max poll duration
     if (Date.now() - startTime > MAX_POLL_DURATION) {
       resetPreviewBuildingFlag();
       updateBatchPreviewStatus('batch', 'changes', 'error', null);
       savePreviewState('error', null);
-      return;
+      return false;
     }
 
     // Get current batch state
@@ -1148,17 +1157,25 @@ export const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
     if (!currentBatch || currentBatch.id !== batch.id) {
       // Batch is no longer active - reset flag
       resetPreviewBuildingFlag();
-      return;
+      return false;
     }
 
     // Stop polling if preview is no longer building
     if (currentBatch.previewStatus !== 'building') {
       resetPreviewBuildingFlag();
-      return;
+      return false;
     }
 
     try {
-      const run = await findWorkflowRun(dispatchTime, batch.branch);
+      const { headSha: currentBatchHeadSha } = currentBatch;
+      const expectedHeadSha = headSha || currentBatchHeadSha || undefined;
+      const workflowRunId = /** @type {any} */ (currentBatch).workflowRunId;
+      const run = selectPreviewRunFromRuns(runs, {
+        workflowRunId,
+        dispatchTime,
+        branch: batch.branch,
+        headSha: expectedHeadSha,
+      });
 
       if (run) {
         if (run.status === 'completed') {
@@ -1178,32 +1195,47 @@ export const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
             });
 
             updateBatchPreviewStatus('batch', 'changes', 'ready', url);
-            savePreviewState('ready', url);
+            savePreviewState('ready', url, run.id);
           } else {
             updateBatchPreviewStatus('batch', 'changes', 'error', null);
-            savePreviewState('error', null);
+            savePreviewState('error', null, run.id);
           }
 
-          return;
+          return false;
         }
 
         // Still running - update with run ID if we found it
-        savePreviewState('building', null);
+        savePreviewState('building', null, run.id);
       }
-
-      // Continue polling
-      setTimeout(poll, POLL_INTERVAL);
     } catch {
       // Ignore errors - we'll retry on next poll
-      setTimeout(poll, POLL_INTERVAL);
     }
+
+    return true;
   };
 
   // Save initial building state
   savePreviewState('building', null);
 
   // Start polling after a short delay to give GitHub time to create the run
-  setTimeout(poll, 2000);
+  setTimeout(async () => {
+    const initialRuns = await refreshPipelineRuns();
+    const keepRunning = await poll(initialRuns);
+
+    if (!keepRunning) {
+      return;
+    }
+
+    const unregister = registerGlobalPreviewPollTask(async (runs) => {
+      const shouldContinue = await poll(runs);
+
+      if (!shouldContinue) {
+        unregister();
+      }
+
+      return shouldContinue;
+    });
+  }, 2000);
 };
 
 /**

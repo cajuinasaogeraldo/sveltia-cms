@@ -31,7 +31,7 @@
     isPreviewOutdated,
     restorePreviewState,
   } from '$lib/services/contents/workflow/preview';
-  import { isActivePreview } from '$lib/services/contents/workflow/preview-queue';
+  import { initPreviewQueue, isActivePreview } from '$lib/services/contents/workflow/preview-queue';
 
   /**
    * @import { UnpublishedEntry, WorkflowStatus } from '$lib/types/private';
@@ -48,6 +48,7 @@
   let globalPreviewBuilding = $derived(isAnyPreviewBuilding());
 
   onMount(() => {
+    initPreviewQueue();
     loadUnpublishedEntries();
     loadExistingBatches();
   });

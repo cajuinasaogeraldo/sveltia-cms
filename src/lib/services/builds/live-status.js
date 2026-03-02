@@ -1,15 +1,15 @@
 import { get, writable } from 'svelte/store';
 
 import { backend } from '$lib/services/backends';
-import { repository } from '$lib/services/backends/git/github/repository';
-import { fetchAPI } from '$lib/services/backends/git/shared/api';
+import {
+  refreshPipelineRuns,
+  registerPipelineListener,
+} from '$lib/services/builds/pipeline-monitor';
 
 /**
  * @import { Writable } from 'svelte/store';
  */
 
-/** Polling interval (in milliseconds). */
-const POLL_INTERVAL = 10000; // 10 seconds
 /** LocalStorage key for live build state. */
 const LIVE_BUILD_STORAGE_KEY = 'sveltia-cms-live-builds';
 /** Maximum number of builds to store in history. */
@@ -64,17 +64,8 @@ export const isPollingLiveBuilds = writable(false);
  */
 export const buildCompletedNotification = writable(null);
 
-/** @type {boolean} */
-let isPageVisible = true;
-/** @type {any} */
-let pollTimeoutId = null;
-
-/**
- * Get the polling interval.
- * @returns {number} Polling interval in milliseconds.
- */
-const getPollInterval = () => POLL_INTERVAL;
-
+/** @type {(() => void) | null} */
+let unregisterPipelineListener = null;
 /**
  * Get the storage key for live builds.
  * @returns {string} Storage key.
@@ -139,102 +130,10 @@ const mapWorkflowRun = (run) => ({
 });
 
 /**
- * Fetch recent workflow runs from GitHub Actions for the main branch.
- * @returns {Promise<LiveBuild[]>} Array of workflow runs.
- */
-const fetchWorkflowRuns = async () => {
-  if (!isGitHubBackend()) {
-    return [];
-  }
-
-  const { owner, repo } = repository;
-
-  try {
-    // Fetch workflow runs for the main/master branch (all event types: push, dispatch, etc.)
-    const query = `branch=main&per_page=${MAX_BUILD_HISTORY}`;
-
-    const result = /** @type {{ workflow_runs: any[] }} */ (
-      await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${query}`)
-    );
-
-    if (!result.workflow_runs?.length) {
-      // Try master branch if main has no runs
-      const masterQuery = `branch=master&per_page=${MAX_BUILD_HISTORY}`;
-
-      const masterResult = /** @type {{ workflow_runs: any[] }} */ (
-        await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${masterQuery}`)
-      );
-
-      if (masterResult.workflow_runs?.length) {
-        return masterResult.workflow_runs.map(mapWorkflowRun);
-      }
-
-      return [];
-    }
-
-    return result.workflow_runs.map(mapWorkflowRun);
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Failed to fetch workflow runs:', error);
-
-    return [];
-  }
-};
-
-/**
- * Fetch a specific workflow run from GitHub Actions by ID.
- * @param {number | null | undefined} runId Workflow run ID.
- * @returns {Promise<LiveBuild | null>} Workflow run or null.
- */
-const fetchWorkflowRunById = async (runId) => {
-  if (!runId || !isGitHubBackend()) {
-    return null;
-  }
-
-  const { owner, repo } = repository;
-
-  try {
-    const run = /** @type {any} */ (
-      await fetchAPI(`/repos/${owner}/${repo}/actions/runs/${runId}`)
-    );
-
-    if (!run?.id) {
-      return null;
-    }
-
-    return mapWorkflowRun(run);
-  } catch {
-    return null;
-  }
-};
-
-/**
- * Ensure the currently tracked build is present in the runs list.
- * This keeps completion detection working after page refreshes.
- * @param {LiveBuild[]} runs Workflow runs from API.
- * @returns {Promise<LiveBuild[]>} Workflow runs including tracked build when available.
- */
-const includeTrackedBuild = async (runs) => {
-  const trackedBuildId = get(liveBuildState).currentBuild?.id;
-
-  if (!trackedBuildId || runs.some((run) => run.id === trackedBuildId)) {
-    return runs;
-  }
-
-  const trackedBuild = await fetchWorkflowRunById(trackedBuildId);
-
-  if (!trackedBuild) {
-    return runs;
-  }
-
-  return [trackedBuild, ...runs];
-};
-
-/**
  * Update live build state from fetched runs.
  * @param {LiveBuild[]} runs Workflow runs from API.
  */
-const updateBuildState = (runs) => {
+function updateBuildState(runs) {
   if (!runs.length) {
     return;
   }
@@ -269,68 +168,16 @@ const updateBuildState = (runs) => {
       buildCompletedNotification.set(completedBuild);
     }
   }
-};
+}
 
 /**
- * Poll for live build status.
+ * Update live build state from raw workflow runs.
+ * @param {any[]} rawRuns Raw workflow runs from API.
  */
-const pollLiveBuilds = async () => {
-  if (!isPageVisible || !isGitHubBackend()) {
-    return;
-  }
-
-  const fetchedRuns = await fetchWorkflowRuns();
-  const runs = await includeTrackedBuild(fetchedRuns);
+const updateBuildStateFromRawRuns = (rawRuns) => {
+  const runs = rawRuns.map(mapWorkflowRun);
 
   updateBuildState(runs);
-};
-
-/**
- * Schedule the next poll with dynamic interval.
- */
-const scheduleNextPoll = () => {
-  // Clear any existing timeout
-  if (pollTimeoutId) {
-    clearTimeout(pollTimeoutId);
-  }
-
-  // Only schedule if we should be polling
-  if (!get(isPollingLiveBuilds)) {
-    return;
-  }
-
-  const interval = getPollInterval();
-
-  pollTimeoutId = window.setTimeout(async () => {
-    await pollLiveBuilds();
-
-    // Schedule next poll with (potentially new) interval
-    if (get(isPollingLiveBuilds)) {
-      scheduleNextPoll();
-    }
-  }, interval);
-};
-
-/**
- * Watch for build state changes and reschedule polling if needed.
- */
-isLiveBuildRunning.subscribe(() => {
-  if (get(isPollingLiveBuilds)) {
-    // Reschedule with new interval
-    scheduleNextPoll();
-  }
-});
-
-/**
- * Handle page visibility change.
- */
-const handleVisibilityChange = () => {
-  isPageVisible = document.visibilityState === 'visible';
-
-  if (isPageVisible && get(isPollingLiveBuilds)) {
-    // Immediately poll when page becomes visible
-    pollLiveBuilds();
-  }
 };
 
 /**
@@ -356,19 +203,28 @@ export const startLiveBuildPolling = () => {
   }
 
   // Don't start if already polling
-  if (pollTimeoutId !== null) {
+  if (unregisterPipelineListener !== null) {
     return;
   }
 
   isPollingLiveBuilds.set(true);
 
-  // Set up visibility change listener
-  document.addEventListener('visibilitychange', handleVisibilityChange);
+  unregisterPipelineListener = registerPipelineListener(async (runs) => {
+    if (!get(isPollingLiveBuilds)) {
+      return false;
+    }
 
-  // Initial poll
-  pollLiveBuilds().then(() => {
-    // Schedule subsequent polls
-    scheduleNextPoll();
+    if (!isGitHubBackend()) {
+      return true;
+    }
+
+    updateBuildStateFromRawRuns(runs);
+
+    return true;
+  });
+
+  refreshPipelineRuns().then((runs) => {
+    updateBuildStateFromRawRuns(runs);
   });
 };
 
@@ -377,12 +233,10 @@ export const startLiveBuildPolling = () => {
  * Should be called on user logout.
  */
 export const stopLiveBuildPolling = () => {
-  if (pollTimeoutId !== null) {
-    clearTimeout(pollTimeoutId);
-    pollTimeoutId = null;
+  if (unregisterPipelineListener !== null) {
+    unregisterPipelineListener();
+    unregisterPipelineListener = null;
   }
-
-  document.removeEventListener('visibilitychange', handleVisibilityChange);
 
   isPollingLiveBuilds.set(false);
   // Don't reset isLiveBuildRunning here - let it be determined by actual build state
@@ -393,7 +247,9 @@ export const stopLiveBuildPolling = () => {
  * @returns {Promise<void>}
  */
 export const refreshLiveBuilds = async () => {
-  await pollLiveBuilds();
+  const runs = await refreshPipelineRuns();
+
+  updateBuildStateFromRawRuns(runs);
 };
 
 /**

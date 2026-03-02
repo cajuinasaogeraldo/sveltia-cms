@@ -2,6 +2,11 @@ import { get } from 'svelte/store';
 
 import { repository } from '$lib/services/backends/git/github/repository';
 import { fetchAPI } from '$lib/services/backends/git/shared/api';
+import {
+  getPipelineSnapshot,
+  refreshPipelineRuns,
+  registerPipelineListener,
+} from '$lib/services/builds/pipeline-monitor';
 import { cmsConfig } from '$lib/services/config';
 import { getUnpublishedEntry, updateUnpublishedEntry } from '$lib/services/contents/workflow';
 import {
@@ -14,14 +19,90 @@ import {
  * @import { GitHubBackend } from '$lib/types/public';
  */
 
-/** Polling interval for checking workflow status (in milliseconds). */
-const POLL_INTERVAL = 5000;
 /** Maximum polling duration (in milliseconds). */
 const MAX_POLL_DURATION = 10 * 60 * 1000; // 10 minutes
 /** LocalStorage key for preview state. */
 const PREVIEW_STORAGE_KEY = 'sveltia-cms-preview-state';
 /** Flag to track if a preview is currently building (prevents concurrent builds). */
 let _isAnyPreviewBuilding = false;
+/** @type {Set<(runs: any[]) => (boolean | Promise<boolean>)>} */
+const globalPreviewPollTasks = new Set();
+/** @type {(() => void) | null} */
+let unregisterPipelinePolling = null;
+/** @type {boolean} */
+let isGlobalPreviewPollTickRunning = false;
+
+/**
+ * Execute one global polling tick.
+ * @param {any[]} runs Latest centralized pipeline runs.
+ */
+const runGlobalPreviewPollTick = async (runs) => {
+  if (isGlobalPreviewPollTickRunning) {
+    return;
+  }
+
+  isGlobalPreviewPollTickRunning = true;
+
+  try {
+    const tasks = [...globalPreviewPollTasks];
+
+    const keepResults = await Promise.all(
+      tasks.map(async (task) => {
+        try {
+          return await task(runs);
+        } catch {
+          return false;
+        }
+      }),
+    );
+
+    tasks.forEach((task, index) => {
+      if (!keepResults[index]) {
+        globalPreviewPollTasks.delete(task);
+      }
+    });
+
+    if (globalPreviewPollTasks.size === 0 && unregisterPipelinePolling) {
+      unregisterPipelinePolling();
+      unregisterPipelinePolling = null;
+    }
+  } finally {
+    isGlobalPreviewPollTickRunning = false;
+  }
+};
+
+/**
+ * Register a task in the global preview polling scheduler.
+ * The task should return true to keep polling, false to stop.
+ * @param {(runs: any[]) => (boolean | Promise<boolean>)} task Polling task callback.
+ * @returns {() => void} Unregister function.
+ */
+export const registerGlobalPreviewPollTask = (task) => {
+  globalPreviewPollTasks.add(task);
+
+  if (!unregisterPipelinePolling) {
+    unregisterPipelinePolling = registerPipelineListener(async (runs) => {
+      await runGlobalPreviewPollTick(runs);
+
+      return globalPreviewPollTasks.size > 0;
+    });
+  }
+
+  const cachedRuns = getPipelineSnapshot().runs;
+
+  if (cachedRuns.length > 0) {
+    runGlobalPreviewPollTick(cachedRuns);
+  }
+
+  return () => {
+    globalPreviewPollTasks.delete(task);
+
+    if (globalPreviewPollTasks.size === 0 && unregisterPipelinePolling) {
+      unregisterPipelinePolling();
+      unregisterPipelinePolling = null;
+    }
+  };
+};
 
 /**
  * @typedef {object} StoredPreviewState
@@ -217,13 +298,15 @@ export const triggerRepositoryDispatch = async (entry) => {
 
 /**
  * Find the workflow run triggered by our dispatch event.
- * Matches by: repository_dispatch event, created after dispatch time, "preview" in name, and branch.
+ * Matches by: repository_dispatch event, created after dispatch time,
+ * "preview" in name, and branch.
  * @param {Date} dispatchTime Time when the dispatch was triggered.
  * @param {string} branch Branch name to match.
+ * @param {string} [headSha] SHA to match when available.
  * @returns {Promise<{ id: number, status: string, conclusion: string | null } | undefined>}
  * Workflow run info or undefined if not found.
  */
-export const findWorkflowRun = async (dispatchTime, branch) => {
+export const findWorkflowRun = async (dispatchTime, branch, headSha) => {
   const { owner, repo } = repository;
 
   try {
@@ -240,9 +323,14 @@ export const findWorkflowRun = async (dispatchTime, branch) => {
     if (result.workflow_runs?.length > 0) {
       const previewRun = result.workflow_runs.find((run) => {
         const hasPreviewName = run.name && run.name.toLowerCase().includes('preview');
+        const isRepositoryDispatch = run.event === 'repository_dispatch';
         const matchesBranch = run.head_branch === branch;
+        const matchesHeadSha = !headSha || run.head_sha === headSha;
+        const matchesBranchAndSha = matchesBranch && matchesHeadSha;
 
-        return hasPreviewName && matchesBranch;
+        // repository_dispatch workflows often run on the default branch (e.g. main),
+        // so branch/head SHA from the entry may not match the run metadata.
+        return (hasPreviewName && matchesBranchAndSha) || (isRepositoryDispatch && hasPreviewName);
       });
 
       if (previewRun) {
@@ -261,46 +349,123 @@ export const findWorkflowRun = async (dispatchTime, branch) => {
 };
 
 /**
+ * Find the most recent preview workflow run for a branch/SHA.
+ * Used as a fallback when the dispatch-time query misses a just-completed run.
+ * @param {string} branch Branch name to match.
+ * @param {string} [headSha] SHA to match when available.
+ * @returns {Promise<{ id: number, status: string, conclusion: string | null } | undefined>}
+ * Workflow run info or undefined if not found.
+ */
+export const findRecentPreviewRun = async (branch, headSha) => {
+  const { owner, repo } = repository;
+
+  try {
+    const branchQuery = `branch=${encodeURIComponent(branch)}&per_page=20`;
+
+    const branchResult = /** @type {{ workflow_runs: any[] }} */ (
+      await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${branchQuery}`)
+    );
+
+    const dispatchResult = /** @type {{ workflow_runs: any[] }} */ (
+      await fetchAPI(`/repos/${owner}/${repo}/actions/runs?event=repository_dispatch&per_page=20`)
+    );
+
+    const runs = [...(branchResult.workflow_runs ?? []), ...(dispatchResult.workflow_runs ?? [])];
+
+    if (!runs.length) {
+      return undefined;
+    }
+
+    const previewRun = runs.find((run) => {
+      const hasPreviewName = run.name && run.name.toLowerCase().includes('preview');
+      const isRepositoryDispatch = run.event === 'repository_dispatch';
+      const matchesHeadSha = !headSha || run.head_sha === headSha;
+
+      return (hasPreviewName && matchesHeadSha) || (hasPreviewName && isRepositoryDispatch);
+    });
+
+    if (!previewRun) {
+      return undefined;
+    }
+
+    return {
+      id: previewRun.id,
+      status: previewRun.status,
+      conclusion: previewRun.conclusion,
+    };
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Fetch a workflow run by ID.
+ * @param {number | undefined} runId Workflow run ID.
+ * @returns {Promise<{ id: number, status: string, conclusion: string | null } | undefined>}
+ * Workflow run info or undefined if not found.
+ */
+export const getWorkflowRunById = async (runId) => {
+  if (!runId) {
+    return undefined;
+  }
+
+  const { owner, repo } = repository;
+
+  try {
+    const run = /** @type {any} */ (
+      await fetchAPI(`/repos/${owner}/${repo}/actions/runs/${runId}`)
+    );
+
+    if (!run?.id) {
+      return undefined;
+    }
+
+    return {
+      id: run.id,
+      status: run.status,
+      conclusion: run.conclusion,
+    };
+  } catch {
+    return undefined;
+  }
+};
+
+/**
  * Find any currently running preview workflow for the given entry.
  * Searches for workflows with "preview" in the name that are in queued or in_progress status.
  * This is used to restore preview state after page refresh.
  * @param {string} branch Branch name to match.
  * @param {string} [collection] Collection name to match (if available in workflow).
  * @param {string} [slug] Slug to match (if available in workflow).
- * @returns {Promise<{ id: number, status: string, headSha: string } | undefined>}
+ * @returns {Promise<{ id: number, status: string, headSha: string, htmlUrl?: string } | undefined>}
  * Workflow run info or undefined if not found.
  */
 export const findActivePreviewWorkflow = async (branch, collection, slug) => {
+  void collection;
+  void slug;
+
   const { owner, repo } = repository;
 
   try {
     // Get recent workflows with queued or in_progress status
-    const query = `status=queued&status=in_progress&per_page=20`;
+    const query = 'status=queued&status=in_progress&per_page=20';
 
     const result = /** @type {{ workflow_runs: any[] }} */ (
       await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${query}`)
     );
 
-    // eslint-disable-next-line no-console
-    console.log('[Preview Debug] Looking for preview workflow', { branch, collection, slug, resultCount: result.workflow_runs?.length });
-
     if (result.workflow_runs?.length > 0) {
-      // Log all workflows for debugging
-      // eslint-disable-next-line no-console
-      console.log('[Preview Debug] All running workflows:', result.workflow_runs.map((w) => ({ name: w.name, branch: w.head_branch, status: w.status })));
-
       // Look for workflows with "preview" in the name
       // Also match by branch if possible (head_branch matches our entry branch)
       const previewRun = result.workflow_runs.find((run) => {
         const isPreviewWorkflow = run.name && run.name.toLowerCase().includes('preview');
+        const isRepositoryDispatch = run.event === 'repository_dispatch';
         const matchesBranch = !branch || run.head_branch === branch;
 
-        return isPreviewWorkflow && matchesBranch;
+        return (isPreviewWorkflow && matchesBranch) || (isPreviewWorkflow && isRepositoryDispatch);
       });
 
       if (previewRun) {
-        // eslint-disable-next-line no-console
-        console.log('[Preview Debug] Found preview workflow:', previewRun.name);
         return {
           id: previewRun.id,
           status: previewRun.status,
@@ -308,13 +473,9 @@ export const findActivePreviewWorkflow = async (branch, collection, slug) => {
           htmlUrl: previewRun.html_url,
         };
       }
-
-      // eslint-disable-next-line no-console
-      console.log('[Preview Debug] No preview workflow found for branch:', branch);
     }
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('[Preview Debug] Error fetching workflows:', error);
+  } catch {
+    // Ignore errors - we'll retry on next poll
   }
 
   return undefined;
@@ -329,18 +490,89 @@ export const hasRunningPreviewWorkflow = async () => {
   const { owner, repo } = repository;
 
   try {
-    const query = `status=queued&status=in_progress&per_page=20`;
+    const query = 'status=queued&status=in_progress&per_page=20';
 
     const result = /** @type {{ workflow_runs: any[] }} */ (
       await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${query}`)
     );
 
-    return result.workflow_runs?.some(
-      (run) => run.name && run.name.toLowerCase().includes('preview')
-    ) ?? false;
+    return (
+      result.workflow_runs?.some(
+        (run) =>
+          (run.name && run.name.toLowerCase().includes('preview')) ||
+          run.event === 'repository_dispatch',
+      ) ?? false
+    );
   } catch {
     return false;
   }
+};
+
+/**
+ * Select the most relevant preview workflow run from a centralized snapshot.
+ * @param {any[]} runs Raw workflow runs.
+ * @param {object} params Selection params.
+ * @param {number | undefined} params.workflowRunId Exact run ID to prioritize.
+ * @param {Date} params.dispatchTime Dispatch timestamp.
+ * @param {string} params.branch Entry branch.
+ * @param {string | undefined} params.headSha Entry head SHA.
+ * @returns {{ id: number, status: string, conclusion: string | null } | undefined}
+ * Selected run summary.
+ */
+export const selectPreviewRunFromRuns = (
+  runs,
+  { workflowRunId, dispatchTime, branch, headSha },
+) => {
+  if (!runs.length) {
+    return undefined;
+  }
+
+  const byId = workflowRunId ? runs.find((run) => run.id === workflowRunId) : undefined;
+
+  if (byId) {
+    return {
+      id: byId.id,
+      status: byId.status,
+      conclusion: byId.conclusion,
+    };
+  }
+
+  const minCreatedAt = dispatchTime.getTime() - 2 * 60 * 1000;
+
+  const candidates = runs.filter((run) => {
+    const hasPreviewName = run.name && run.name.toLowerCase().includes('preview');
+    const isRepositoryDispatch = run.event === 'repository_dispatch';
+
+    if (!hasPreviewName && !isRepositoryDispatch) {
+      return false;
+    }
+
+    const createdAtTime = Date.parse(run.created_at ?? '') || 0;
+    const isRecentEnough = createdAtTime >= minCreatedAt;
+
+    if (!isRecentEnough) {
+      return false;
+    }
+
+    const branchMatches = run.head_branch === branch;
+    const shaMatches = !headSha || run.head_sha === headSha;
+
+    return (branchMatches && shaMatches) || (hasPreviewName && isRepositoryDispatch);
+  });
+
+  if (!candidates.length) {
+    return undefined;
+  }
+
+  const selected = candidates.sort(
+    (a, b) => (Date.parse(b.created_at ?? '') || 0) - (Date.parse(a.created_at ?? '') || 0),
+  )[0];
+
+  return {
+    id: selected.id,
+    status: selected.status,
+    conclusion: selected.conclusion,
+  };
 };
 
 /**
@@ -355,9 +587,11 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
   const startTime = Date.now();
 
   /**
-   * Poll once and schedule the next poll if needed.
+   * Poll once.
+   * @param {any[]} runs Workflow runs snapshot.
+   * @returns {Promise<boolean>} True to continue polling, false to stop.
    */
-  const poll = async () => {
+  const poll = async (/** @type {any[]} */ runs) => {
     // Check if we've exceeded the max poll duration
     if (Date.now() - startTime > MAX_POLL_DURATION) {
       _isAnyPreviewBuilding = false;
@@ -368,7 +602,7 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
       });
       savePreviewState(collection, slug, { status: 'error' });
 
-      return;
+      return false;
     }
 
     const entry = getUnpublishedEntry(collection, slug);
@@ -376,10 +610,30 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
     // Stop polling if entry no longer exists or preview was cancelled
     if (!entry || entry.previewStatus !== 'building') {
       _isAnyPreviewBuilding = false;
-      return;
+      return false;
     }
 
-    const run = await findWorkflowRun(dispatchTime, entry.branch);
+    if (!entry.branch) {
+      _isAnyPreviewBuilding = false;
+
+      updateUnpublishedEntry(collection, slug, {
+        previewStatus: 'error',
+        isBuildingPreview: false,
+      });
+      savePreviewState(collection, slug, { status: 'error' });
+
+      return false;
+    }
+
+    // Select matching run from centralized snapshot.
+    const expectedHeadSha = headSha ?? entry.headSha;
+
+    const run = selectPreviewRunFromRuns(runs, {
+      workflowRunId: entry.workflowRunId,
+      dispatchTime,
+      branch: entry.branch,
+      headSha: expectedHeadSha,
+    });
 
     if (run) {
       if (run.status === 'completed') {
@@ -415,7 +669,7 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
           savePreviewState(collection, slug, { status: 'error', workflowRunId: run.id });
         }
 
-        return;
+        return false;
       }
 
       // Still running - update with run ID if we found it
@@ -425,12 +679,28 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
       savePreviewState(collection, slug, { workflowRunId: run.id });
     }
 
-    // Continue polling
-    setTimeout(poll, POLL_INTERVAL);
+    return true;
   };
 
   // Start polling after a short delay to give GitHub time to create the run
-  setTimeout(poll, 2000);
+  setTimeout(async () => {
+    const initialRuns = await refreshPipelineRuns();
+    const keepRunning = await poll(initialRuns);
+
+    if (!keepRunning) {
+      return;
+    }
+
+    const unregister = registerGlobalPreviewPollTask(async (runs) => {
+      const shouldContinue = await poll(runs);
+
+      if (!shouldContinue) {
+        unregister();
+      }
+
+      return shouldContinue;
+    });
+  }, 2000);
 };
 
 /**
@@ -441,7 +711,8 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
  * @param {string} collection Collection name.
  * @param {string} slug Entry slug.
  * @returns {Promise<void>}
- * @throws {Error} If preview_url is not configured, entry not found, or another build is in progress.
+ * @throws {Error} If preview_url is not configured,
+ * entry not found, or another build is in progress.
  */
 export const buildPreview = async (collection, slug) => {
   const entry = getUnpublishedEntry(collection, slug);
@@ -450,12 +721,17 @@ export const buildPreview = async (collection, slug) => {
     throw new Error('Entry not found');
   }
 
+  if (!entry.branch) {
+    throw new Error('Entry branch is required to build preview.');
+  }
+
   if (!isPreviewEnabled()) {
     throw new Error('Preview is not configured. Set preview_url in your CMS config.');
   }
 
   // Check if there's already a preview workflow running for this branch
   const activeWorkflow = await findActivePreviewWorkflow(entry.branch, collection, slug);
+
   if (activeWorkflow) {
     throw new Error('A preview build is already running. Please wait for it to complete.');
   }
@@ -528,6 +804,11 @@ export const restorePreviewState = async (collection, slug) => {
     return;
   }
 
+  if (!entry.branch) {
+    removeStoredPreviewState(collection, slug);
+    return;
+  }
+
   // ALWAYS check GitHub API for running preview workflows (even with stored state)
   // This ensures we detect workflows even after F5 when localStorage might be cleared
   const activeWorkflow = await findActivePreviewWorkflow(entry.branch, collection, slug);
@@ -542,6 +823,8 @@ export const restorePreviewState = async (collection, slug) => {
       workflowRunId: activeWorkflow.id,
       previewForSha: activeWorkflow.headSha,
     });
+
+    enqueuePreview(collection, slug);
 
     // Save to localStorage so we can track it
     savePreviewState(collection, slug, {
@@ -587,6 +870,10 @@ export const restorePreviewState = async (collection, slug) => {
       isBuildingPreview: false,
     });
 
+    if (stored.status === 'ready' && stored.previewUrl) {
+      enqueuePreview(collection, slug, stored.previewUrl);
+    }
+
     return;
   }
 
@@ -615,6 +902,8 @@ export const restorePreviewState = async (collection, slug) => {
       isBuildingPreview: true,
       workflowRunId: stored.workflowRunId,
     });
+
+    enqueuePreview(collection, slug);
 
     pollWorkflowStatus(collection, slug, new Date(stored.dispatchTime), stored.headSha);
   }

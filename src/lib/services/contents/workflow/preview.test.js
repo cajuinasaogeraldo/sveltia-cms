@@ -2,9 +2,16 @@ import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { fetchAPI } from '$lib/services/backends/git/shared/api';
+import { resetPipelineMonitor } from '$lib/services/builds/pipeline-monitor';
 import { getUnpublishedEntry, updateUnpublishedEntry } from '$lib/services/contents/workflow';
 
-import { buildPreview, buildPreviewUrl, getPreviewStatus, isPreviewEnabled } from './preview';
+import {
+  buildPreview,
+  buildPreviewUrl,
+  getPreviewStatus,
+  isPreviewEnabled,
+  resetPreviewBuildingFlag,
+} from './preview';
 
 // Mock the stores and API before importing the module
 vi.mock('svelte/store', async (importOriginal) => {
@@ -42,10 +49,14 @@ describe('preview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    resetPipelineMonitor();
+    resetPreviewBuildingFlag();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    resetPipelineMonitor();
+    resetPreviewBuildingFlag();
   });
 
   describe('isPreviewEnabled', () => {
@@ -346,6 +357,237 @@ describe('preview', () => {
         isBuildingPreview: false,
         previewStatus: 'error',
       });
+    });
+
+    test('continues tracking by workflow run ID until completion', async () => {
+      const entryState = {
+        slug: 'my-article',
+        collection: 'posts',
+        status: /** @type {const} */ ('pending_review'),
+        data: {},
+        branch: 'cms/posts/my-article',
+        prNumber: 123,
+        title: 'My Article',
+        headSha: 'abc123',
+      };
+
+      vi.mocked(getUnpublishedEntry).mockImplementation(() => entryState);
+      vi.mocked(updateUnpublishedEntry).mockImplementation((_, __, updates) => {
+        Object.assign(entryState, updates);
+      });
+
+      vi.mocked(get).mockReturnValue({
+        backend: {
+          name: 'github',
+          preview_url: 'https://preview.example.com/{{slug}}',
+        },
+      });
+
+      let snapshotCallCount = 0;
+
+      vi.mocked(fetchAPI).mockImplementation(async (url) => {
+        if (
+          url ===
+          '/repos/test-owner/test-repo/actions/runs?status=queued&status=in_progress&per_page=20'
+        ) {
+          return { workflow_runs: [] };
+        }
+
+        if (url === '/repos/test-owner/test-repo/dispatches') {
+          return {};
+        }
+
+        if (url === '/repos/test-owner/test-repo/actions/runs?per_page=100') {
+          snapshotCallCount += 1;
+
+          const status = snapshotCallCount > 1 ? 'completed' : 'in_progress';
+          const conclusion = snapshotCallCount > 1 ? 'success' : null;
+
+          return {
+            workflow_runs: [
+              {
+                id: 777,
+                status,
+                conclusion,
+                name: 'Preview Deploy',
+                head_branch: 'cms/posts/my-article',
+                head_sha: 'abc123',
+                created_at: '2100-01-01T00:00:00Z',
+              },
+            ],
+          };
+        }
+
+        return { workflow_runs: [] };
+      });
+
+      await buildPreview('posts', 'my-article');
+
+      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(10000);
+
+      expect(fetchAPI).toHaveBeenCalledWith(
+        '/repos/test-owner/test-repo/actions/runs?per_page=100',
+      );
+      expect(updateUnpublishedEntry).toHaveBeenCalledWith(
+        'posts',
+        'my-article',
+        expect.objectContaining({
+          previewStatus: 'ready',
+          workflowRunId: 777,
+          isBuildingPreview: false,
+        }),
+      );
+    });
+
+    test('detects completion via recent preview fallback without workflow run ID', async () => {
+      const entryState = {
+        slug: 'my-article',
+        collection: 'posts',
+        status: /** @type {const} */ ('pending_review'),
+        data: {},
+        branch: 'cms/posts/my-article',
+        prNumber: 123,
+        title: 'My Article',
+        headSha: 'abc123',
+      };
+
+      vi.mocked(getUnpublishedEntry).mockImplementation(() => entryState);
+      vi.mocked(updateUnpublishedEntry).mockImplementation((_, __, updates) => {
+        Object.assign(entryState, updates);
+      });
+
+      vi.mocked(get).mockReturnValue({
+        backend: {
+          name: 'github',
+          preview_url: 'https://preview.example.com/{{slug}}',
+        },
+      });
+
+      vi.mocked(fetchAPI).mockImplementation(async (url) => {
+        if (
+          url ===
+          '/repos/test-owner/test-repo/actions/runs?status=queued&status=in_progress&per_page=20'
+        ) {
+          return { workflow_runs: [] };
+        }
+
+        if (url === '/repos/test-owner/test-repo/dispatches') {
+          return {};
+        }
+
+        if (url === '/repos/test-owner/test-repo/actions/runs?per_page=100') {
+          return {
+            workflow_runs: [
+              {
+                id: 888,
+                status: 'completed',
+                conclusion: 'success',
+                name: 'Preview Deploy',
+                head_branch: 'cms/posts/my-article',
+                head_sha: 'abc123',
+                created_at: '2100-01-01T00:00:00Z',
+              },
+            ],
+          };
+        }
+
+        return { workflow_runs: [] };
+      });
+
+      await buildPreview('posts', 'my-article');
+
+      await vi.advanceTimersByTimeAsync(2000);
+
+      expect(fetchAPI).toHaveBeenCalledWith(
+        '/repos/test-owner/test-repo/actions/runs?per_page=100',
+      );
+      expect(updateUnpublishedEntry).toHaveBeenCalledWith(
+        'posts',
+        'my-article',
+        expect.objectContaining({
+          previewStatus: 'ready',
+          workflowRunId: 888,
+          isBuildingPreview: false,
+        }),
+      );
+    });
+
+    test('detects repository_dispatch completion even when run branch is main', async () => {
+      const entryState = {
+        slug: 'my-article',
+        collection: 'posts',
+        status: /** @type {const} */ ('pending_review'),
+        data: {},
+        branch: 'cms/posts/my-article',
+        prNumber: 123,
+        title: 'My Article',
+        headSha: 'abc123',
+      };
+
+      vi.mocked(getUnpublishedEntry).mockImplementation(() => entryState);
+      vi.mocked(updateUnpublishedEntry).mockImplementation((_, __, updates) => {
+        Object.assign(entryState, updates);
+      });
+
+      vi.mocked(get).mockReturnValue({
+        backend: {
+          name: 'github',
+          preview_url: 'https://preview.example.com/{{slug}}',
+        },
+      });
+
+      vi.mocked(fetchAPI).mockImplementation(async (url) => {
+        if (
+          url ===
+          '/repos/test-owner/test-repo/actions/runs?status=queued&status=in_progress&per_page=20'
+        ) {
+          return { workflow_runs: [] };
+        }
+
+        if (url === '/repos/test-owner/test-repo/dispatches') {
+          return {};
+        }
+
+        if (url === '/repos/test-owner/test-repo/actions/runs?per_page=100') {
+          return {
+            workflow_runs: [
+              {
+                id: 999,
+                status: 'completed',
+                conclusion: 'success',
+                name: 'Preview Deploy',
+                event: 'repository_dispatch',
+                head_branch: 'main',
+                head_sha: 'different-from-entry-sha',
+                created_at: '2100-01-01T00:00:00Z',
+              },
+            ],
+          };
+        }
+
+        if (
+          url ===
+          '/repos/test-owner/test-repo/actions/runs?branch=cms%2Fposts%2Fmy-article&per_page=20'
+        ) {
+          return { workflow_runs: [] };
+        }
+
+        return { workflow_runs: [] };
+      });
+
+      await buildPreview('posts', 'my-article');
+      await vi.advanceTimersByTimeAsync(2000);
+
+      expect(updateUnpublishedEntry).toHaveBeenCalledWith(
+        'posts',
+        'my-article',
+        expect.objectContaining({
+          previewStatus: 'ready',
+          workflowRunId: 999,
+          isBuildingPreview: false,
+        }),
+      );
     });
   });
 

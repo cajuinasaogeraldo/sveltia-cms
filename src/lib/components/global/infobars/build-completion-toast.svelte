@@ -1,5 +1,5 @@
 <script>
-  import { Alert, Icon, Toast } from '@sveltia/ui';
+  import { Alert, Toast } from '@sveltia/ui';
   import { _ } from 'svelte-i18n';
 
   import { buildCompletedNotification } from '$lib/services/builds/live-status';
@@ -32,12 +32,12 @@
     <Alert status={build.conclusion === 'success' ? 'success' : 'error'}>
       <div style="display: flex; align-items: center; gap: 8px;">
         {#if build.conclusion === 'success'}
-          <Icon name="check_circle" />
+          <!-- <Icon name="check_circle" /> -->
           <span>
             {$_('deploy_build_complete', { default: 'Deploy completed successfully!' })}
           </span>
         {:else}
-          <Icon name="error" />
+          <!-- <Icon name="error" /> -->
           <span>
             {$_('deploy_build_failed', { default: 'Deploy failed. Check the logs for details.' })}
           </span>
