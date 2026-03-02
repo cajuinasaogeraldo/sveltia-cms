@@ -14,6 +14,7 @@ import { createSavingEntryData } from '$lib/services/contents/draft/save/changes
 import { getSlugs } from '$lib/services/contents/draft/slugs';
 import { validateEntry } from '$lib/services/contents/draft/validate';
 import { expandInvalidFields } from '$lib/services/contents/editor/expanders';
+import { batchModeEnabled, persistBatchEntry } from '$lib/services/contents/workflow/batch';
 
 import { saveEntry } from './index';
 
@@ -33,6 +34,10 @@ vi.mock('$lib/services/contents/draft/save/changes');
 vi.mock('$lib/services/contents/draft/slugs');
 vi.mock('$lib/services/contents/draft/validate');
 vi.mock('$lib/services/contents/editor/expanders');
+vi.mock('$lib/services/contents/workflow/batch', () => ({
+  batchModeEnabled: { subscribe: vi.fn(() => vi.fn()) },
+  persistBatchEntry: vi.fn(),
+}));
 vi.mock('$lib/services/user/prefs', () => ({
   prefs: { subscribe: vi.fn(() => vi.fn()) },
 }));
@@ -188,6 +193,33 @@ describe('draft/save/index', () => {
         published: false,
         count: 1,
       });
+    });
+
+    it('should skip batch workflow and save directly on local backend', async () => {
+      mockGet.mockImplementation((store) => {
+        if (store === entryDraft) {
+          return mockDraft;
+        }
+
+        if (store === backend) {
+          return { isGit: false, name: 'local' };
+        }
+
+        if (store === skipCIEnabled) {
+          return false;
+        }
+
+        if (store === batchModeEnabled) {
+          return true;
+        }
+
+        return undefined;
+      });
+
+      await saveEntry();
+
+      expect(saveChanges).toHaveBeenCalled();
+      expect(persistBatchEntry).not.toHaveBeenCalled();
     });
 
     it('should delete backup after successful save', async () => {

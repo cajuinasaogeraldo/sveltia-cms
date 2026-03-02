@@ -47,6 +47,17 @@
   /** Reactive state for global preview building status (disables all build buttons). */
   let globalPreviewBuilding = $derived(isAnyPreviewBuilding());
 
+  const hasDraftBatch = $derived(!!$activeBatch && $activeBatch.status === WORKFLOW_STATUS.DRAFT);
+  const hasReviewBatch = $derived(
+    !!$activeBatch && $activeBatch.status === WORKFLOW_STATUS.PENDING_REVIEW,
+  );
+  const hasReadyBatch = $derived(
+    !!$activeBatch && $activeBatch.status === WORKFLOW_STATUS.PENDING_PUBLISH,
+  );
+  const draftColumnCount = $derived($draftEntries.length + (hasDraftBatch ? 1 : 0));
+  const reviewColumnCount = $derived($pendingReviewEntries.length + (hasReviewBatch ? 1 : 0));
+  const readyColumnCount = $derived($pendingPublishEntries.length + (hasReadyBatch ? 1 : 0));
+
   onMount(() => {
     initPreviewQueue();
     loadUnpublishedEntries();
@@ -330,7 +341,7 @@
         <Group class="column" aria-labelledby="draft-column-title">
           <header role="none">
             <h3 role="none" id="draft-column-title">{$_('status.drafts')}</h3>
-            <span class="count">{$draftEntries.length}</span>
+            <span class="count">{draftColumnCount}</span>
           </header>
           <div
             role="none"
@@ -397,16 +408,18 @@
                   </Button>
                 </div>
               </article>
-            {:else}
-              <p class="empty">{$_('no_entries', { default: 'No drafts' })}</p>
             {/each}
+
+            {#if !hasDraftBatch && $draftEntries.length === 0}
+              <p class="empty">{$_('no_entries', { default: 'No drafts' })}</p>
+            {/if}
           </div>
         </Group>
 
         <Group class="column" aria-labelledby="review-column-title">
           <header role="none">
             <h3 role="none" id="review-column-title">{$_('status.in_review')}</h3>
-            <span class="count">{$pendingReviewEntries.length}</span>
+            <span class="count">{reviewColumnCount}</span>
           </header>
           <div
             role="none"
@@ -498,16 +511,18 @@
                   </Button>
                 </div>
               </article>
-            {:else}
-              <p class="empty">{$_('no_entries', { default: 'No entries in review' })}</p>
             {/each}
+
+            {#if !hasReviewBatch && $pendingReviewEntries.length === 0}
+              <p class="empty">{$_('no_entries', { default: 'No entries in review' })}</p>
+            {/if}
           </div>
         </Group>
 
         <Group class="column" aria-labelledby="ready-column-title">
           <header role="none">
             <h3 role="none" id="ready-column-title">{$_('status.ready')}</h3>
-            <span class="count">{$pendingPublishEntries.length}</span>
+            <span class="count">{readyColumnCount}</span>
           </header>
           <div
             role="none"
@@ -578,9 +593,11 @@
                   </Button>
                 </div>
               </article>
-            {:else}
-              <p class="empty">{$_('no_entries', { default: 'No entries ready to publish' })}</p>
             {/each}
+
+            {#if !hasReadyBatch && $pendingPublishEntries.length === 0}
+              <p class="empty">{$_('no_entries', { default: 'No entries ready to publish' })}</p>
+            {/if}
           </div>
         </Group>
       </div>

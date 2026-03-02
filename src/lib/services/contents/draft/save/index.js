@@ -68,6 +68,9 @@ const updateStores = ({ skipCI, isWorkflow = false }) => {
 export const saveEntry = async ({ skipCI = undefined } = {}) => {
   const draft = /** @type {EntryDraft} */ (get(entryDraft));
   const { collection, isNew, collectionName, fileName, currentValues } = draft;
+  const currentBackend = get(backend);
+  const isGitHubBackend = currentBackend?.isGit && currentBackend.name === 'github';
+  const isWorkflowSaveEnabled = isGitHubBackend && isEditorialWorkflowEnabled();
 
   if (!validateEntry()) {
     expandInvalidFields({ collectionName, fileName, currentValues });
@@ -82,7 +85,7 @@ export const saveEntry = async ({ skipCI = undefined } = {}) => {
   const workflowBranch = get(currentWorkflowBranch);
   const workflowEntry = get(currentWorkflowEntry);
 
-  if (workflowBranch && workflowEntry && !isNew) {
+  if (isWorkflowSaveEnabled && workflowBranch && workflowEntry && !isNew) {
     // Editing existing workflow entry - commit to PR branch
     try {
       updateUnpublishedEntry(collectionName, workflowEntry.slug, { isPersisting: true });
@@ -120,7 +123,7 @@ export const saveEntry = async ({ skipCI = undefined } = {}) => {
   // Check if batch mode is enabled
   const isBatch = get(batchModeEnabled);
 
-  if (isBatch) {
+  if (isWorkflowSaveEnabled && isBatch) {
     // Batch mode: save in the batch instead of creating individual branch
     try {
       const title = getEntrySummary(collection, savingEntry) ?? defaultLocaleSlug;
@@ -147,7 +150,7 @@ export const saveEntry = async ({ skipCI = undefined } = {}) => {
   }
 
   // Check if editorial workflow is enabled (for new entries)
-  if (isEditorialWorkflowEnabled() && get(backend)?.isGit) {
+  if (isWorkflowSaveEnabled) {
     try {
       // Get entry title for the PR
       const title = getEntrySummary(collection, savingEntry) ?? defaultLocaleSlug;
