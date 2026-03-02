@@ -29,7 +29,7 @@
     "check:svelte": "svelte-check",
     "dev": "vite",
     "format": "prettier --write .",
-    "pre-release": "node scripts/prepare-release.js",
+    "bump": "node scripts/bump-version-and-create-tag.js",
     "prepublishOnly": "vite build",
     "preview": "vite preview",
     "release": "node scripts/release.js",
