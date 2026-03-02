@@ -14,6 +14,7 @@ import {
   updatePRStatus,
 } from '$lib/services/backends/git/github/pull-requests';
 import { repository } from '$lib/services/backends/git/github/repository';
+import { fetchAPI } from '$lib/services/backends/git/shared/api';
 import { createWorkflowMessage } from '$lib/services/backends/git/shared/commits';
 import { cmsConfig } from '$lib/services/config';
 import { getValidCollections } from '$lib/services/contents/collection';
@@ -835,10 +836,117 @@ export const loadExistingBatches = async () => {
 };
 
 /**
- * Restore preview state for a batch from localStorage.
+ * Find any currently running batch preview workflow.
+ * Searches for ANY workflow with "preview" in the name that is in queued or in_progress status.
+ * Note: repository_dispatch workflows run on the default branch (usually main), not the PR branch.
+ * @returns {Promise<{ id: number, status: string, headSha: string } | undefined>}
+ * Workflow run info or undefined if not found.
+ */
+const findActiveBatchPreviewWorkflow = async () => {
+  const { owner, repo } = repository;
+
+  try {
+    // Get recent workflows with queued or in_progress status
+    const query = `status=queued&status=in_progress&per_page=20`;
+
+    const result = /** @type {{ workflow_runs: any[] }} */ (
+      await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${query}`)
+    );
+
+    // eslint-disable-next-line no-console
+    console.log('[Batch Preview Debug] Looking for preview workflow', { resultCount: result.workflow_runs?.length });
+
+    if (result.workflow_runs?.length > 0) {
+      // Log all workflows for debugging
+      // eslint-disable-next-line no-console
+      console.log('[Batch Preview Debug] All running workflows:', result.workflow_runs.map((w) => ({ name: w.name, branch: w.head_branch, status: w.status })));
+
+      // Look for ANY workflow with "preview" in the name
+      // Don't filter by branch since repository_dispatch runs on default branch (main)
+      const previewRun = result.workflow_runs.find((run) =>
+        run.name && run.name.toLowerCase().includes('preview')
+      );
+
+      if (previewRun) {
+        // eslint-disable-next-line no-console
+        console.log('[Batch Preview Debug] Found preview workflow:', previewRun.name, 'on branch:', previewRun.head_branch);
+        return {
+          id: previewRun.id,
+          status: previewRun.status,
+          headSha: previewRun.head_sha,
+        };
+      }
+
+      // eslint-disable-next-line no-console
+      console.log('[Batch Preview Debug] No preview workflow found');
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[Batch Preview Debug] Error fetching workflows:', error);
+  }
+
+  return undefined;
+};
+
+/**
+ * Restore preview state for a batch from localStorage and/or GitHub API.
  * @param {Batch} batch Batch to restore preview state for.
  */
-const restoreBatchPreviewState = (batch) => {
+const restoreBatchPreviewState = async (batch) => {
+  // ALWAYS check GitHub API for running preview workflows first
+  const activeWorkflow = await findActiveBatchPreviewWorkflow();
+
+  if (activeWorkflow) {
+    // Found a running preview workflow - restore state
+    const updated = {
+      ...batch,
+      previewStatus: /** @type {'building'} */ ('building'),
+      isBuildingPreview: true,
+      workflowRunId: activeWorkflow.id,
+      previewForSha: activeWorkflow.headSha,
+    };
+
+    activeBatch.set(updated);
+    allBatches.update((batches) => batches.map((b) => (b.id === batch.id ? updated : b)));
+
+    // Save to localStorage
+    try {
+      const stored = localStorage.getItem(BATCH_PREVIEW_STORAGE_KEY);
+      const states = stored ? JSON.parse(stored) : [];
+
+      const batchState = states.find(
+        (/** @type {{ batchId: string }} */ s) => s.batchId === batch.id,
+      );
+
+      if (batchState) {
+        batchState.status = 'building';
+        batchState.workflowRunId = activeWorkflow.id;
+        batchState.headSha = activeWorkflow.headSha;
+        batchState.dispatchTime = Date.now();
+      } else {
+        states.push({
+          batchId: batch.id,
+          status: 'building',
+          workflowRunId: activeWorkflow.id,
+          headSha: activeWorkflow.headSha,
+          dispatchTime: Date.now(),
+          prNumber: batch.prNumber,
+        });
+      }
+
+      localStorage.setItem(BATCH_PREVIEW_STORAGE_KEY, JSON.stringify(states));
+    } catch {
+      // Ignore storage errors
+    }
+
+    // Start polling the workflow status to track completion
+    // Use dispatchTime from 60 seconds ago to ensure we find the workflow
+    pollBatchPreviewStatus(updated, new Date(Date.now() - 60000), activeWorkflow.headSha);
+
+    return;
+  }
+
+  // If no active workflow found, restore from localStorage
   try {
     const stored = localStorage.getItem(BATCH_PREVIEW_STORAGE_KEY);
 
@@ -972,11 +1080,12 @@ export const buildBatchPreview = async () => {
 /**
  * Poll the workflow status for batch preview.
  * Similar to pollWorkflowStatus but updates batch instead of unpublished entry.
+ * Exported so it can be called when restoring preview state after page refresh.
  * @param {Batch} batch The batch to poll for.
  * @param {Date} dispatchTime When the dispatch was triggered.
  * @param {string} headSha HEAD SHA for the preview.
  */
-const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
+export const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
   const POLL_INTERVAL = 3000; // Poll every 3 seconds instead of 5
   const MAX_POLL_DURATION = 10 * 60 * 1000; // 10 minutes
   const startTime = Date.now();
@@ -1049,7 +1158,7 @@ const pollBatchPreviewStatus = async (batch, dispatchTime, headSha) => {
     }
 
     try {
-      const run = await findWorkflowRun(dispatchTime);
+      const run = await findWorkflowRun(dispatchTime, batch.branch);
 
       if (run) {
         if (run.status === 'completed') {

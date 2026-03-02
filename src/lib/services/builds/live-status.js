@@ -8,10 +8,8 @@ import { fetchAPI } from '$lib/services/backends/git/shared/api';
  * @import { Writable } from 'svelte/store';
  */
 
-/** Polling interval when a build is running (in milliseconds). */
-const POLL_INTERVAL_ACTIVE = 10000; // 10 seconds
-/** Polling interval when no build is running (in milliseconds). */
-const POLL_INTERVAL_IDLE = 30000; // 30 seconds
+/** Polling interval (in milliseconds). */
+const POLL_INTERVAL = 10000; // 10 seconds
 /** LocalStorage key for live build state. */
 const LIVE_BUILD_STORAGE_KEY = 'sveltia-cms-live-builds';
 /** Maximum number of builds to store in history. */
@@ -66,22 +64,16 @@ export const isPollingLiveBuilds = writable(false);
  */
 export const buildCompletedNotification = writable(null);
 
-/** @type {number | null} */
-let pollIntervalId = null;
 /** @type {boolean} */
 let isPageVisible = true;
 /** @type {any} */
 let pollTimeoutId = null;
 
 /**
- * Get the appropriate polling interval based on current state.
+ * Get the polling interval.
  * @returns {number} Polling interval in milliseconds.
  */
-const getPollInterval = () => {
-  const running = get(isLiveBuildRunning);
-
-  return running ? POLL_INTERVAL_ACTIVE : POLL_INTERVAL_IDLE;
-};
+const getPollInterval = () => POLL_INTERVAL;
 
 /**
  * Get the storage key for live builds.
@@ -190,6 +182,55 @@ const fetchWorkflowRuns = async () => {
 };
 
 /**
+ * Fetch a specific workflow run from GitHub Actions by ID.
+ * @param {number | null | undefined} runId Workflow run ID.
+ * @returns {Promise<LiveBuild | null>} Workflow run or null.
+ */
+const fetchWorkflowRunById = async (runId) => {
+  if (!runId || !isGitHubBackend()) {
+    return null;
+  }
+
+  const { owner, repo } = repository;
+
+  try {
+    const run = /** @type {any} */ (
+      await fetchAPI(`/repos/${owner}/${repo}/actions/runs/${runId}`)
+    );
+
+    if (!run?.id) {
+      return null;
+    }
+
+    return mapWorkflowRun(run);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Ensure the currently tracked build is present in the runs list.
+ * This keeps completion detection working after page refreshes.
+ * @param {LiveBuild[]} runs Workflow runs from API.
+ * @returns {Promise<LiveBuild[]>} Workflow runs including tracked build when available.
+ */
+const includeTrackedBuild = async (runs) => {
+  const trackedBuildId = get(liveBuildState).currentBuild?.id;
+
+  if (!trackedBuildId || runs.some((run) => run.id === trackedBuildId)) {
+    return runs;
+  }
+
+  const trackedBuild = await fetchWorkflowRunById(trackedBuildId);
+
+  if (!trackedBuild) {
+    return runs;
+  }
+
+  return [trackedBuild, ...runs];
+};
+
+/**
  * Update live build state from fetched runs.
  * @param {LiveBuild[]} runs Workflow runs from API.
  */
@@ -238,7 +279,8 @@ const pollLiveBuilds = async () => {
     return;
   }
 
-  const runs = await fetchWorkflowRuns();
+  const fetchedRuns = await fetchWorkflowRuns();
+  const runs = await includeTrackedBuild(fetchedRuns);
 
   updateBuildState(runs);
 };
@@ -338,11 +380,6 @@ export const stopLiveBuildPolling = () => {
   if (pollTimeoutId !== null) {
     clearTimeout(pollTimeoutId);
     pollTimeoutId = null;
-  }
-
-  if (pollIntervalId !== null) {
-    clearInterval(pollIntervalId);
-    pollIntervalId = null;
   }
 
   document.removeEventListener('visibilitychange', handleVisibilityChange);

@@ -217,34 +217,130 @@ export const triggerRepositoryDispatch = async (entry) => {
 
 /**
  * Find the workflow run triggered by our dispatch event.
+ * Matches by: repository_dispatch event, created after dispatch time, "preview" in name, and branch.
  * @param {Date} dispatchTime Time when the dispatch was triggered.
+ * @param {string} branch Branch name to match.
  * @returns {Promise<{ id: number, status: string, conclusion: string | null } | undefined>}
  * Workflow run info or undefined if not found.
  */
-export const findWorkflowRun = async (dispatchTime) => {
+export const findWorkflowRun = async (dispatchTime, branch) => {
   const { owner, repo } = repository;
 
   try {
-    const query = `event=repository_dispatch&per_page=5&created=>${dispatchTime.toISOString()}`;
+    const query = `event=repository_dispatch&per_page=20&created=>${dispatchTime.toISOString()}`;
 
     const result = /** @type {{ workflow_runs: any[] }} */ (
       await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${query}`)
     );
 
+    // Filter for workflows that match our dispatch:
+    // 1. Created after dispatch time
+    // 2. Has "preview" in the name (case-insensitive)
+    // 3. Matches the branch we dispatched for
     if (result.workflow_runs?.length > 0) {
-      const run = result.workflow_runs[0];
+      const previewRun = result.workflow_runs.find((run) => {
+        const hasPreviewName = run.name && run.name.toLowerCase().includes('preview');
+        const matchesBranch = run.head_branch === branch;
 
-      return {
-        id: run.id,
-        status: run.status,
-        conclusion: run.conclusion,
-      };
+        return hasPreviewName && matchesBranch;
+      });
+
+      if (previewRun) {
+        return {
+          id: previewRun.id,
+          status: previewRun.status,
+          conclusion: previewRun.conclusion,
+        };
+      }
     }
   } catch {
     // Ignore errors - we'll retry on next poll
   }
 
   return undefined;
+};
+
+/**
+ * Find any currently running preview workflow for the given entry.
+ * Searches for workflows with "preview" in the name that are in queued or in_progress status.
+ * This is used to restore preview state after page refresh.
+ * @param {string} branch Branch name to match.
+ * @param {string} [collection] Collection name to match (if available in workflow).
+ * @param {string} [slug] Slug to match (if available in workflow).
+ * @returns {Promise<{ id: number, status: string, headSha: string } | undefined>}
+ * Workflow run info or undefined if not found.
+ */
+export const findActivePreviewWorkflow = async (branch, collection, slug) => {
+  const { owner, repo } = repository;
+
+  try {
+    // Get recent workflows with queued or in_progress status
+    const query = `status=queued&status=in_progress&per_page=20`;
+
+    const result = /** @type {{ workflow_runs: any[] }} */ (
+      await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${query}`)
+    );
+
+    // eslint-disable-next-line no-console
+    console.log('[Preview Debug] Looking for preview workflow', { branch, collection, slug, resultCount: result.workflow_runs?.length });
+
+    if (result.workflow_runs?.length > 0) {
+      // Log all workflows for debugging
+      // eslint-disable-next-line no-console
+      console.log('[Preview Debug] All running workflows:', result.workflow_runs.map((w) => ({ name: w.name, branch: w.head_branch, status: w.status })));
+
+      // Look for workflows with "preview" in the name
+      // Also match by branch if possible (head_branch matches our entry branch)
+      const previewRun = result.workflow_runs.find((run) => {
+        const isPreviewWorkflow = run.name && run.name.toLowerCase().includes('preview');
+        const matchesBranch = !branch || run.head_branch === branch;
+
+        return isPreviewWorkflow && matchesBranch;
+      });
+
+      if (previewRun) {
+        // eslint-disable-next-line no-console
+        console.log('[Preview Debug] Found preview workflow:', previewRun.name);
+        return {
+          id: previewRun.id,
+          status: previewRun.status,
+          headSha: previewRun.head_sha,
+          htmlUrl: previewRun.html_url,
+        };
+      }
+
+      // eslint-disable-next-line no-console
+      console.log('[Preview Debug] No preview workflow found for branch:', branch);
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[Preview Debug] Error fetching workflows:', error);
+  }
+
+  return undefined;
+};
+
+/**
+ * Check if there's any preview workflow currently running.
+ * This can be used to prevent duplicate builds.
+ * @returns {Promise<boolean>} True if there's at least one preview workflow running.
+ */
+export const hasRunningPreviewWorkflow = async () => {
+  const { owner, repo } = repository;
+
+  try {
+    const query = `status=queued&status=in_progress&per_page=20`;
+
+    const result = /** @type {{ workflow_runs: any[] }} */ (
+      await fetchAPI(`/repos/${owner}/${repo}/actions/runs?${query}`)
+    );
+
+    return result.workflow_runs?.some(
+      (run) => run.name && run.name.toLowerCase().includes('preview')
+    ) ?? false;
+  } catch {
+    return false;
+  }
 };
 
 /**
@@ -283,7 +379,7 @@ const pollWorkflowStatus = async (collection, slug, dispatchTime, headSha) => {
       return;
     }
 
-    const run = await findWorkflowRun(dispatchTime);
+    const run = await findWorkflowRun(dispatchTime, entry.branch);
 
     if (run) {
       if (run.status === 'completed') {
@@ -358,6 +454,12 @@ export const buildPreview = async (collection, slug) => {
     throw new Error('Preview is not configured. Set preview_url in your CMS config.');
   }
 
+  // Check if there's already a preview workflow running for this branch
+  const activeWorkflow = await findActivePreviewWorkflow(entry.branch, collection, slug);
+  if (activeWorkflow) {
+    throw new Error('A preview build is already running. Please wait for it to complete.');
+  }
+
   // Prevent concurrent builds
   if (_isAnyPreviewBuilding) {
     throw new Error('Another preview is currently building. Please wait for it to complete.');
@@ -413,35 +515,65 @@ export const buildPreview = async (collection, slug) => {
 /**
  * Restore preview state from localStorage and resume polling if needed.
  * This should be called when the workflow page loads to restore any in-progress previews.
+ * Always checks GitHub API for running preview workflows, even if there's stored state.
  * @param {string} collection Collection name.
  * @param {string} slug Entry slug.
  */
-export const restorePreviewState = (collection, slug) => {
+export const restorePreviewState = async (collection, slug) => {
   const stored = getStoredPreviewState(collection, slug);
-
-  if (!stored) {
-    return;
-  }
-
   const entry = getUnpublishedEntry(collection, slug);
 
   if (!entry) {
     removeStoredPreviewState(collection, slug);
+    return;
+  }
 
+  // ALWAYS check GitHub API for running preview workflows (even with stored state)
+  // This ensures we detect workflows even after F5 when localStorage might be cleared
+  const activeWorkflow = await findActivePreviewWorkflow(entry.branch, collection, slug);
+
+  if (activeWorkflow) {
+    // Found a running preview workflow - restore state
+    _isAnyPreviewBuilding = true;
+
+    updateUnpublishedEntry(collection, slug, {
+      previewStatus: 'building',
+      isBuildingPreview: true,
+      workflowRunId: activeWorkflow.id,
+      previewForSha: activeWorkflow.headSha,
+    });
+
+    // Save to localStorage so we can track it
+    savePreviewState(collection, slug, {
+      collection,
+      slug,
+      status: 'building',
+      dispatchTime: Date.now(),
+      prNumber: entry.prNumber,
+      headSha: activeWorkflow.headSha,
+      workflowRunId: activeWorkflow.id,
+    });
+
+    // Start polling the workflow
+    pollWorkflowStatus(collection, slug, new Date(Date.now() - 60000), activeWorkflow.headSha);
+
+    return;
+  }
+
+  // If no active workflow found, restore from stored state if available
+  if (!stored) {
     return;
   }
 
   // Validate that the PR number matches (entry might have been recreated)
   if (stored.prNumber && entry.prNumber !== stored.prNumber) {
     removeStoredPreviewState(collection, slug);
-
     return;
   }
 
   // If the entry has been updated (new commit), the preview is outdated
   if (stored.headSha && entry.headSha && stored.headSha !== entry.headSha) {
     removeStoredPreviewState(collection, slug);
-
     return;
   }
 

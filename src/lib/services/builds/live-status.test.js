@@ -232,7 +232,7 @@ describe('live-status', () => {
       expect(get(isPollingLiveBuilds)).toBe(false);
     });
 
-    test('polls at 30 second intervals', async () => {
+    test('polls at 10 second intervals', async () => {
       vi.mocked(fetchAPI).mockResolvedValue({
         workflow_runs: [
           {
@@ -252,13 +252,13 @@ describe('live-status', () => {
 
       const initialCalls = vi.mocked(fetchAPI).mock.calls.length;
 
-      // Advance 30 seconds
+      // Advance 30 seconds (3 polling cycles)
       await vi.advanceTimersByTimeAsync(30000);
-      expect(fetchAPI).toHaveBeenCalledTimes(initialCalls + 1);
+      expect(fetchAPI).toHaveBeenCalledTimes(initialCalls + 3);
 
-      // Advance another 30 seconds
+      // Advance another 30 seconds (3 polling cycles)
       await vi.advanceTimersByTimeAsync(30000);
-      expect(fetchAPI).toHaveBeenCalledTimes(initialCalls + 2);
+      expect(fetchAPI).toHaveBeenCalledTimes(initialCalls + 6);
     });
 
     test('does not start polling twice', () => {
@@ -390,6 +390,48 @@ describe('live-status', () => {
 
       expect(state.history).toHaveLength(0);
       expect(state.currentBuild).toBeNull();
+    });
+
+    test('tracks stored running build completion even when branch list does not include it', async () => {
+      const storedState = {
+        currentBuild: {
+          id: 999,
+          name: 'Preview Deploy',
+          status: 'in_progress',
+          conclusion: null,
+          htmlUrl: 'https://github.com/test/repo/actions/runs/999',
+          createdAt: '2025-01-01T00:00:00Z',
+          headSha: 'xyz999',
+          headBranch: 'feature/test-branch',
+        },
+        history: [],
+        lastPolled: Date.now() - 60000,
+      };
+
+      localStorage.setItem('sveltia-cms-live-builds', JSON.stringify(storedState));
+      loadInitialState();
+
+      vi.mocked(fetchAPI)
+        .mockResolvedValueOnce({ workflow_runs: [] })
+        .mockResolvedValueOnce({ workflow_runs: [] })
+        .mockResolvedValueOnce({
+          id: 999,
+          name: 'Preview Deploy',
+          status: 'completed',
+          conclusion: 'success',
+          html_url: 'https://github.com/test/repo/actions/runs/999',
+          created_at: '2025-01-01T00:00:00Z',
+          updated_at: '2025-01-01T00:05:00Z',
+          head_sha: 'xyz999',
+          head_branch: 'feature/test-branch',
+        });
+
+      await refreshLiveBuilds();
+
+      expect(fetchAPI).toHaveBeenCalledWith('/repos/test-owner/test-repo/actions/runs/999');
+      expect(getCurrentBuild()).toBeNull();
+      expect(getBuildHistory()[0]?.id).toBe(999);
+      expect(getBuildHistory()[0]?.conclusion).toBe('success');
     });
   });
 });

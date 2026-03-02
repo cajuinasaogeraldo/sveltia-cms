@@ -22,20 +22,21 @@
   /** Whether the popup menu is open. */
   let isPopupOpen = $state(false);
 
-  // Load initial state from localStorage when component mounts (no polling yet)
+  // Load initial state from localStorage when component mounts
   $effect(() => {
     if (isRemoteGitHubBackend) {
       loadInitialState();
     }
   });
 
-  // Start/stop polling based on popup open state or build running state
+  // Keep polling always running for GitHub backend to catch new builds anytime
   $effect(() => {
-    // Poll when popup is open OR when there's a build running
-    if ((isPopupOpen || $isLiveBuildRunning) && isRemoteGitHubBackend) {
+    if (isRemoteGitHubBackend) {
       startLiveBuildPolling();
-    } else {
-      stopLiveBuildPolling();
+
+      return () => {
+        stopLiveBuildPolling();
+      };
     }
   });
 
